@@ -1207,6 +1207,47 @@ def upload_cards_bulk(deck_id):
     }), 201 if result['inserted'] > 0 else 400
 
 
+@app.route('/decks/<int:deck_id>/upload-csv', methods=['POST'])
+@login_required
+def upload_flashcard_csv(deck_id):
+    """Upload flashcards from CSV file (Question,Answer format)"""
+    if 'file' not in request.files:
+        return jsonify({'error': 'No file provided'}), 400
+    
+    file = request.files['file']
+    
+    if not file.filename or file.filename == '' or not file.filename.endswith('.csv'):
+        return jsonify({'error': 'Invalid file. Must be CSV'}), 400
+    
+    user_id = session.get('user_id')
+    
+    try:
+        # Read CSV file
+        stream = io.StringIO(file.stream.read().decode("UTF-8"), newline=None)
+        csv_reader = csv.DictReader(stream)
+        
+        cards_data = []
+        for row in csv_reader:
+            cards_data.append(row)
+        
+        if not cards_data:
+            return jsonify({'error': 'CSV file is empty'}), 400
+        
+        # Import cards using bulk_create_cards
+        result = bulk_create_cards(deck_id, user_id, cards_data)
+        
+        return jsonify({
+            'message': f"Successfully imported {result['inserted']} card(s)",
+            'inserted': result['inserted'],
+            'failed': result['failed'],
+            'errors': result['errors']
+        }), 200 if result['failed'] == 0 else 207
+        
+    except Exception as e:
+        app.logger.error(f"Error uploading flashcard CSV: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
 # ---------------- STUDY SESSION ROUTES ----------------
 @app.route('/study')
 @login_required
