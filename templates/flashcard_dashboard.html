@@ -1,0 +1,686 @@
+{% extends "base.html" %}
+
+{% block title %}Flashcard Dashboard - Quiz Master{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<style>
+    .dashboard-container {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 2rem;
+    }
+
+    /* Stats Section */
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 1.5rem;
+        margin-bottom: 2rem;
+    }
+
+    .stat-card {
+        background: white;
+        border-radius: 15px;
+        padding: 1.5rem;
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        transition: transform 0.3s;
+    }
+
+    .stat-card:hover {
+        transform: translateY(-5px);
+    }
+
+    .stat-icon {
+        width: 60px;
+        height: 60px;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.5rem;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+    }
+
+    .stat-icon.cards { background: linear-gradient(135deg, #4ECDC4 0%, #44A08D 100%); }
+    .stat-icon.due { background: linear-gradient(135deg, #FF6B6B 0%, #FF8E53 100%); }
+    .stat-icon.points { background: linear-gradient(135deg, #F7DC6F 0%, #F39C12 100%); }
+    .stat-icon.streak { background: linear-gradient(135deg, #E74C3C 0%, #C0392B 100%); }
+
+    .stat-content h3 {
+        font-size: 1.8rem;
+        margin: 0;
+        color: #2c3e50;
+    }
+
+    .stat-content p {
+        margin: 0;
+        color: #7f8c8d;
+        font-size: 0.9rem;
+    }
+
+    /* Study Now Section */
+    .study-now-section {
+        margin-bottom: 2rem;
+    }
+
+    .study-now-card {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border-radius: 20px;
+        padding: 2rem;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        color: white;
+        box-shadow: 0 10px 30px rgba(102, 126, 234, 0.4);
+    }
+
+    .study-icon {
+        font-size: 3rem;
+        opacity: 0.9;
+    }
+
+    .study-content h2 {
+        margin: 0 0 0.5rem 0;
+        font-size: 1.5rem;
+    }
+
+    .study-content p {
+        margin: 0;
+        opacity: 0.9;
+    }
+
+    .study-btn {
+        background: white;
+        color: #667eea;
+        border: none;
+        padding: 1rem 2rem;
+        border-radius: 30px;
+        font-size: 1rem;
+        font-weight: bold;
+        cursor: pointer;
+        transition: transform 0.3s, box-shadow 0.3s;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .study-btn:hover {
+        transform: scale(1.05);
+        box-shadow: 0 5px 20px rgba(0,0,0,0.2);
+    }
+
+    /* Section Header */
+    .section-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1.5rem;
+    }
+
+    .section-header h2 {
+        color: white;
+        margin: 0;
+        font-size: 1.5rem;
+    }
+
+    .add-deck-btn {
+        background: white;
+        color: #667eea;
+        border: none;
+        padding: 0.75rem 1.5rem;
+        border-radius: 25px;
+        font-weight: bold;
+        cursor: pointer;
+        transition: all 0.3s;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .add-deck-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+    }
+
+    /* Decks Grid */
+    .decks-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+        gap: 1.5rem;
+    }
+
+    .deck-card {
+        background: white;
+        border-radius: 15px;
+        padding: 1.5rem;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        transition: transform 0.3s, box-shadow 0.3s;
+        cursor: pointer;
+    }
+
+    .deck-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+    }
+
+    .deck-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        margin-bottom: 1rem;
+    }
+
+    .deck-name {
+        font-size: 1.2rem;
+        font-weight: bold;
+        color: #2c3e50;
+        margin: 0;
+    }
+
+    .deck-menu {
+        position: relative;
+    }
+
+    .deck-menu-btn {
+        background: none;
+        border: none;
+        color: #bdc3c7;
+        cursor: pointer;
+        padding: 0.25rem;
+        font-size: 1.2rem;
+    }
+
+    .deck-menu-btn:hover {
+        color: #7f8c8d;
+    }
+
+    .deck-description {
+        color: #7f8c8d;
+        font-size: 0.9rem;
+        margin-bottom: 1rem;
+        min-height: 40px;
+    }
+
+    .deck-stats {
+        display: flex;
+        gap: 1rem;
+        padding-top: 1rem;
+        border-top: 1px solid #ecf0f1;
+    }
+
+    .deck-stat {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        font-size: 0.85rem;
+        color: #7f8c8d;
+    }
+
+    .deck-stat i {
+        color: #667eea;
+    }
+
+    .deck-stat.due {
+        color: #e74c3c;
+    }
+
+    .deck-stat.due i {
+        color: #e74c3c;
+    }
+
+    .deck-actions {
+        display: flex;
+        gap: 0.5rem;
+        margin-top: 1rem;
+    }
+
+    .deck-action-btn {
+        flex: 1;
+        padding: 0.5rem;
+        border: none;
+        border-radius: 8px;
+        cursor: pointer;
+        font-size: 0.85rem;
+        transition: all 0.3s;
+    }
+
+    .deck-action-btn.study {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+    }
+
+    .deck-action-btn.view {
+        background: #ecf0f1;
+        color: #2c3e50;
+    }
+
+    .deck-action-btn:hover {
+        transform: translateY(-2px);
+    }
+
+    /* Empty State */
+    .empty-state {
+        text-align: center;
+        padding: 3rem;
+        background: white;
+        border-radius: 15px;
+        grid-column: 1 / -1;
+    }
+
+    .empty-state i {
+        font-size: 4rem;
+        color: #bdc3c7;
+        margin-bottom: 1rem;
+    }
+
+    .empty-state h3 {
+        color: #2c3e50;
+        margin-bottom: 0.5rem;
+    }
+
+    .empty-state p {
+        color: #7f8c8d;
+        margin-bottom: 1.5rem;
+    }
+
+    /* Modal */
+    .modal {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        z-index: 1000;
+    }
+
+    .modal.active {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .modal-overlay {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0,0,0,0.5);
+    }
+
+    .modal-content {
+        background: white;
+        border-radius: 15px;
+        width: 90%;
+        max-width: 500px;
+        position: relative;
+        z-index: 1;
+        animation: modalSlideIn 0.3s ease;
+    }
+
+    @keyframes modalSlideIn {
+        from {
+            opacity: 0;
+            transform: translateY(-20px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    .modal-header {
+        padding: 1.5rem;
+        border-bottom: 1px solid #ecf0f1;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .modal-header h2 {
+        margin: 0;
+        color: #2c3e50;
+    }
+
+    .modal-close {
+        background: none;
+        border: none;
+        font-size: 1.5rem;
+        color: #bdc3c7;
+        cursor: pointer;
+    }
+
+    .modal-close:hover {
+        color: #e74c3c;
+    }
+
+    .modal-body {
+        padding: 1.5rem;
+    }
+
+    .form-group {
+        margin-bottom: 1.5rem;
+    }
+
+    .form-group label {
+        display: block;
+        margin-bottom: 0.5rem;
+        color: #2c3e50;
+        font-weight: 500;
+    }
+
+    .form-group input,
+    .form-group textarea {
+        width: 100%;
+        padding: 0.75rem;
+        border: 2px solid #ecf0f1;
+        border-radius: 8px;
+        font-size: 1rem;
+        transition: border-color 0.3s;
+    }
+
+    .form-group input:focus,
+    .form-group textarea:focus {
+        outline: none;
+        border-color: #667eea;
+    }
+
+    .form-actions {
+        display: flex;
+        gap: 1rem;
+        justify-content: flex-end;
+    }
+
+    .btn-secondary {
+        background: #ecf0f1;
+        color: #2c3e50;
+        border: none;
+        padding: 0.75rem 1.5rem;
+        border-radius: 8px;
+        cursor: pointer;
+    }
+
+    .btn-primary {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border: none;
+        padding: 0.75rem 1.5rem;
+        border-radius: 8px;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    /* Quick Links */
+    .quick-links {
+        display: flex;
+        gap: 1rem;
+        margin-top: 2rem;
+        flex-wrap: wrap;
+    }
+
+    .quick-link {
+        background: white;
+        color: #667eea;
+        padding: 1rem 1.5rem;
+        border-radius: 10px;
+        text-decoration: none;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        font-weight: 500;
+        transition: all 0.3s;
+    }
+
+    .quick-link:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="dashboard-container">
+    <!-- Stats Section -->
+    <section class="stats-grid">
+        <div class="stat-card">
+            <div class="stat-icon">
+                <i class="fas fa-layer-group"></i>
+            </div>
+            <div class="stat-content">
+                <h3>{{ stats.total_decks }}</h3>
+                <p>Total Decks</p>
+            </div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon cards">
+                <i class="fas fa-clone"></i>
+            </div>
+            <div class="stat-content">
+                <h3>{{ stats.total_cards }}</h3>
+                <p>Total Cards</p>
+            </div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon due">
+                <i class="fas fa-clock"></i>
+            </div>
+            <div class="stat-content">
+                <h3>{{ stats.cards_due }}</h3>
+                <p>Cards Due Today</p>
+            </div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon points">
+                <i class="fas fa-star"></i>
+            </div>
+            <div class="stat-content">
+                <h3>{{ stats.total_points }}</h3>
+                <p>Total Points</p>
+            </div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon streak">
+                <i class="fas fa-fire"></i>
+            </div>
+            <div class="stat-content">
+                <h3>{{ stats.current_streak }}</h3>
+                <p>Day Streak</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- Study Now Section -->
+    {% if stats.cards_due > 0 %}
+    <section class="study-now-section">
+        <div class="study-now-card">
+            <div class="study-icon">
+                <i class="fas fa-book-reader"></i>
+            </div>
+            <div class="study-content">
+                <h2>Ready to Study?</h2>
+                <p>You have <strong>{{ stats.cards_due }}</strong> cards due for review today!</p>
+            </div>
+            <a href="{{ url_for('study_session_page') }}" class="study-btn">
+                <i class="fas fa-play"></i>
+                Start Study Session
+            </a>
+        </div>
+    </section>
+    {% endif %}
+
+    <!-- Decks Section -->
+    <section class="decks-section">
+        <div class="section-header">
+            <h2><i class="fas fa-folder"></i> My Flashcard Decks</h2>
+            <button class="add-deck-btn" onclick="openCreateDeckModal()">
+                <i class="fas fa-plus"></i>
+                Create Deck
+            </button>
+        </div>
+
+        <div class="decks-grid">
+            {% if decks %}
+                {% for deck in decks %}
+                <div class="deck-card" data-deck-id="{{ deck.deck_id }}">
+                    <div class="deck-header">
+                        <h3 class="deck-name">{{ deck.deck_name }}</h3>
+                    </div>
+                    <p class="deck-description">{{ deck.description or 'No description' }}</p>
+                    <div class="deck-stats">
+                        <span class="deck-stat">
+                            <i class="fas fa-clone"></i>
+                            {{ deck.card_count or 0 }} cards
+                        </span>
+                        {% if deck.cards_due and deck.cards_due > 0 %}
+                        <span class="deck-stat due">
+                            <i class="fas fa-clock"></i>
+                            {{ deck.cards_due }} due
+                        </span>
+                        {% endif %}
+                        {% if deck.new_cards and deck.new_cards > 0 %}
+                        <span class="deck-stat">
+                            <i class="fas fa-sparkles"></i>
+                            {{ deck.new_cards }} new
+                        </span>
+                        {% endif %}
+                    </div>
+                    <div class="deck-actions">
+                        <a href="{{ url_for('study_session_page', deck_id=deck.deck_id) }}" class="deck-action-btn study">
+                            <i class="fas fa-play"></i> Study
+                        </a>
+                        <a href="{{ url_for('view_deck', deck_id=deck.deck_id) }}" class="deck-action-btn view">
+                            <i class="fas fa-eye"></i> View
+                        </a>
+                    </div>
+                </div>
+                {% endfor %}
+            {% else %}
+                <div class="empty-state">
+                    <i class="fas fa-folder-open"></i>
+                    <h3>No decks yet</h3>
+                    <p>Create your first deck to start learning with flashcards!</p>
+                    <button class="btn-primary" onclick="openCreateDeckModal()">
+                        <i class="fas fa-plus"></i>
+                        Create Your First Deck
+                    </button>
+                </div>
+            {% endif %}
+        </div>
+    </section>
+
+    <!-- Quick Links -->
+    <div class="quick-links">
+        <a href="{{ url_for('index') }}" class="quick-link">
+            <i class="fas fa-question-circle"></i> Take a Quiz
+        </a>
+        <a href="{{ url_for('mcq_categories_page') }}" class="quick-link">
+            <i class="fas fa-th-large"></i> MCQ Categories
+        </a>
+        <a href="{{ url_for('view_achievements') }}" class="quick-link">
+            <i class="fas fa-trophy"></i> Achievements
+        </a>
+        <a href="{{ url_for('leaderboard') }}" class="quick-link">
+            <i class="fas fa-medal"></i> Leaderboard
+        </a>
+    </div>
+</div>
+
+<!-- Create Deck Modal -->
+<div class="modal" id="createDeckModal">
+    <div class="modal-overlay" onclick="closeCreateDeckModal()"></div>
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2>Create New Deck</h2>
+            <button class="modal-close" onclick="closeCreateDeckModal()">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="modal-body">
+            <form id="createDeckForm" onsubmit="createDeck(event)">
+                <div class="form-group">
+                    <label for="deckName">
+                        <i class="fas fa-heading"></i> Deck Name
+                    </label>
+                    <input type="text" id="deckName" required placeholder="e.g., JavaScript Fundamentals">
+                </div>
+                <div class="form-group">
+                    <label for="deckDescription">
+                        <i class="fas fa-align-left"></i> Description (Optional)
+                    </label>
+                    <textarea id="deckDescription" rows="3" placeholder="Brief description of this deck..."></textarea>
+                </div>
+                <div class="form-actions">
+                    <button type="button" class="btn-secondary" onclick="closeCreateDeckModal()">Cancel</button>
+                    <button type="submit" class="btn-primary">
+                        <i class="fas fa-plus"></i> Create Deck
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function openCreateDeckModal() {
+    document.getElementById('createDeckModal').classList.add('active');
+}
+
+function closeCreateDeckModal() {
+    document.getElementById('createDeckModal').classList.remove('active');
+    document.getElementById('createDeckForm').reset();
+}
+
+async function createDeck(event) {
+    event.preventDefault();
+    
+    const deckName = document.getElementById('deckName').value.trim();
+    const description = document.getElementById('deckDescription').value.trim();
+    
+    if (!deckName) {
+        alert('Please enter a deck name');
+        return;
+    }
+    
+    try {
+        const response = await fetch('/decks', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                deck_name: deckName,
+                description: description
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok) {
+            window.location.reload();
+        } else {
+            alert(data.error || 'Failed to create deck');
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        alert('Failed to create deck');
+    }
+}
+
+// Close modal on Escape key
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+        closeCreateDeckModal();
+    }
+});
+</script>
+{% endblock %}

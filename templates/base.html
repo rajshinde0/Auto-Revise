@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Quiz App{% endblock %}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    {% block extra_css %}{% endblock %}
+</head>
+<body>
+    <nav class="navbar">
+        <div class="nav-container">
+            <a href="/" class="nav-logo">📚 Quiz Master</a>
+            <ul class="nav-menu">
+                <li><a href="/" class="nav-link">Home</a></li>
+                {% if session.get('user_id') %}
+                    <li><a href="/flashcards" class="nav-link">📚 Flashcards</a></li>
+                    <li><a href="/mcq-categories" class="nav-link">📝 MCQ Practice</a></li>
+                    <li><a href="/leaderboard" class="nav-link">🏅 Leaderboard</a></li>
+                    <li><a href="/achievements" class="nav-link">🏆 Achievements</a></li>
+                    <li><a href="/results" class="nav-link">My Results</a></li>
+                    {% if session.get('is_admin') %}
+                        <li><a href="/admin" class="nav-link">Admin</a></li>
+                    {% endif %}
+                    <li class="nav-user">
+                        <span class="user-greeting">Hello, {{ session.get('full_name', 'User') }}!</span>
+                        <a href="/logout" class="nav-link btn-logout">Logout</a>
+                    </li>
+                {% else %}
+                    <li><a href="/login" class="nav-link btn-login">Login</a></li>
+                    <li><a href="/register" class="nav-link btn-register">Register</a></li>
+                {% endif %}
+            </ul>
+        </div>
+    </nav>
+    
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            <div class="flash-messages">
+                {% for category, message in messages %}
+                    <div class="flash-message flash-{{ category }}">
+                        {{ message }}
+                    </div>
+                {% endfor %}
+            </div>
+        {% endif %}
+    {% endwith %}
+
+    <main class="main-content">
+        {% block content %}{% endblock %}
+    </main>
+
+    <footer class="footer">
+        <p>&copy; 2024 Quiz Master. All rights reserved.</p>
+    </footer>
+
+    {% block extra_js %}{% endblock %}
+</body>
+</html>

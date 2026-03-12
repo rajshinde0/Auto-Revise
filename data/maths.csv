@@ -1,0 +1,31 @@
+question_text,option_a,option_b,option_c,option_d,correct_option,subject
+"What is the value of (x + y)² if x = 3 and y = 4?",49,12,25,16,49,Mathematics
+"What is the zero of the polynomial p(x) = x – 5?",0,5,-5,10,5,Mathematics
+"If the roots of ax² + bx + c = 0 are equal, what is the condition?",b² = 4ac,b² > 4ac,b² < 4ac,a = 0,b² = 4ac,Mathematics
+"Find the HCF of 24 and 36.",6,12,18,24,12,Mathematics
+"What is the sum of first 10 natural numbers?",45,50,55,60,55,Mathematics
+"The value of sin²θ + cos²θ is always?",1,0,2,θ,1,Mathematics
+"What is the area of a circle with radius 7 cm?",154,44,77,100,154,Mathematics
+"If 3x – 7 = 11, find x.",4,6,5,7,6,Mathematics
+"What is the slope of the line y = 3x + 2?",2,3,-3,0,3,Mathematics
+"What is the distance between points (0,0) and (3,4)?",5,7,6,4,5,Mathematics
+"Find the mode of the data: 3, 7, 3, 9, 3, 8, 7.",3,7,8,9,3,Mathematics
+"What is the quadratic formula used to find roots of ax² + bx + c = 0?",(-b±√(b²-4ac))/2a,(-b±√(b²+4ac))/2a,(b±√(b²-4ac))/2a,(-b±√(b²-4ac))/a,(-b±√(b²-4ac))/2a,Mathematics
+"What is the probability of getting a head in one coin toss?",0,0.5,1,0.25,0.5,Mathematics
+"What is the sum of the interior angles of a triangle?",90°,120°,180°,360°,180°,Mathematics
+"Find the value of 2³.",6,8,9,12,8,Mathematics
+"If a = 2 and b = 3, what is (a + b)² – (a – b)²?",20,24,12,16,24,Mathematics
+"Find the median of 5, 7, 9, 11, 13.",7,9,11,10,9,Mathematics
+"The circumference of a circle is 2πr. If r = 3 cm, what is it?",9π,6π,3π,12π,6π,Mathematics
+"If sinθ = 3/5, find cosθ.",4/5,5/3,3/4,1/2,4/5,Mathematics
+"What is the LCM of 8 and 12?",16,24,12,32,24,Mathematics
+"Find the roots of x² – 9 = 0.",3,-3,3 and -3,0,3 and -3,Mathematics
+"Find the perimeter of a rectangle with length 10 cm and breadth 6 cm.",16,32,26,20,32,Mathematics
+"The sum of the first n natural numbers is given by?",n(n+1)/2,n²,n+1,n(n-1)/2,n(n+1)/2,Mathematics
+"The tangent of 45° is?",1,0,∞,√3,1,Mathematics
+"If a line has the equation 2x + 3y = 6, what is its y-intercept?",2,3,6,0,2,Mathematics
+"The coordinates of the origin are?","(0,0)","(1,0)","(0,1)","(1,1)","(0,0)",Mathematics
+"Simplify: (x² – y²) = ?",x² + y²,(x + y)(x – y),2xy,(x – y)²,(x + y)(x – y),Mathematics
+"The value of (0.1)² is?",0.01,0.1,0.001,1,0.01,Mathematics
+"What is 15% of 200?",20,25,30,35,30,Mathematics
+"What is the cube of 4?",8,12,16,64,64,Mathematics

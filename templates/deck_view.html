@@ -1,0 +1,765 @@
+{% extends "base.html" %}
+
+{% block title %}{{ deck.deck_name }} - Quiz Master{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<style>
+    .deck-view-container {
+        max-width: 1000px;
+        margin: 0 auto;
+        padding: 2rem;
+    }
+
+    /* Deck Header */
+    .deck-header {
+        background: white;
+        border-radius: 15px;
+        padding: 2rem;
+        margin-bottom: 2rem;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+    }
+
+    .deck-header-top {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        margin-bottom: 1rem;
+    }
+
+    .deck-title {
+        margin: 0;
+        color: #2c3e50;
+        font-size: 2rem;
+    }
+
+    .deck-actions {
+        display: flex;
+        gap: 0.5rem;
+    }
+
+    .deck-action {
+        background: #ecf0f1;
+        border: none;
+        padding: 0.5rem 1rem;
+        border-radius: 8px;
+        cursor: pointer;
+        color: #2c3e50;
+        font-size: 0.9rem;
+        transition: all 0.3s;
+    }
+
+    .deck-action:hover {
+        background: #d5dbdb;
+    }
+
+    .deck-action.danger {
+        color: #e74c3c;
+    }
+
+    .deck-action.danger:hover {
+        background: #fde8e8;
+    }
+
+    .deck-description {
+        color: #7f8c8d;
+        margin-bottom: 1rem;
+    }
+
+    .deck-stats-bar {
+        display: flex;
+        gap: 2rem;
+        padding-top: 1rem;
+        border-top: 1px solid #ecf0f1;
+    }
+
+    .deck-stat {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        color: #7f8c8d;
+    }
+
+    .deck-stat i {
+        color: #667eea;
+    }
+
+    .deck-stat.due {
+        color: #e74c3c;
+    }
+
+    .deck-stat.due i {
+        color: #e74c3c;
+    }
+
+    /* Study Button */
+    .study-section {
+        margin-bottom: 2rem;
+    }
+
+    .study-button {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 1rem;
+        width: 100%;
+        padding: 1.5rem;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border: none;
+        border-radius: 15px;
+        font-size: 1.2rem;
+        font-weight: bold;
+        cursor: pointer;
+        transition: all 0.3s;
+        text-decoration: none;
+    }
+
+    .study-button:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 10px 30px rgba(102, 126, 234, 0.4);
+    }
+
+    /* Cards Section */
+    .cards-section {
+        background: white;
+        border-radius: 15px;
+        padding: 2rem;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+    }
+
+    .cards-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1.5rem;
+    }
+
+    .cards-header h2 {
+        margin: 0;
+        color: #2c3e50;
+    }
+
+    .add-card-btn {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border: none;
+        padding: 0.75rem 1.5rem;
+        border-radius: 25px;
+        font-weight: bold;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        transition: all 0.3s;
+    }
+
+    .add-card-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+    }
+
+    /* Cards List */
+    .cards-list {
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+    }
+
+    .card-item {
+        background: #f8f9fa;
+        border-radius: 12px;
+        padding: 1.5rem;
+        display: grid;
+        grid-template-columns: 1fr auto;
+        gap: 1rem;
+        align-items: center;
+        transition: all 0.3s;
+    }
+
+    .card-item:hover {
+        background: #ecf0f1;
+    }
+
+    .card-content-preview {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 1rem;
+    }
+
+    .card-side {
+        padding: 1rem;
+        background: white;
+        border-radius: 8px;
+        border-left: 4px solid #667eea;
+    }
+
+    .card-side.back {
+        border-left-color: #27ae60;
+    }
+
+    .card-side-label {
+        font-size: 0.75rem;
+        color: #7f8c8d;
+        text-transform: uppercase;
+        margin-bottom: 0.5rem;
+    }
+
+    .card-side-text {
+        color: #2c3e50;
+        font-size: 0.95rem;
+        line-height: 1.4;
+        max-height: 80px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .card-status {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .status-badge {
+        padding: 0.25rem 0.75rem;
+        border-radius: 20px;
+        font-size: 0.75rem;
+        font-weight: bold;
+        text-transform: uppercase;
+    }
+
+    .status-badge.new {
+        background: #ebf5fb;
+        color: #3498db;
+    }
+
+    .status-badge.due {
+        background: #fde8e8;
+        color: #e74c3c;
+    }
+
+    .status-badge.learning {
+        background: #fef5e7;
+        color: #f39c12;
+    }
+
+    .status-badge.mastered {
+        background: #e8f8f5;
+        color: #27ae60;
+    }
+
+    .card-actions {
+        display: flex;
+        gap: 0.5rem;
+    }
+
+    .card-action-btn {
+        background: white;
+        border: 1px solid #ecf0f1;
+        padding: 0.5rem;
+        border-radius: 8px;
+        cursor: pointer;
+        color: #7f8c8d;
+        transition: all 0.3s;
+    }
+
+    .card-action-btn:hover {
+        background: #667eea;
+        color: white;
+        border-color: #667eea;
+    }
+
+    .card-action-btn.delete:hover {
+        background: #e74c3c;
+        border-color: #e74c3c;
+    }
+
+    /* Empty State */
+    .empty-state {
+        text-align: center;
+        padding: 3rem;
+        color: #7f8c8d;
+    }
+
+    .empty-state i {
+        font-size: 4rem;
+        margin-bottom: 1rem;
+        opacity: 0.5;
+    }
+
+    .empty-state h3 {
+        color: #2c3e50;
+        margin-bottom: 0.5rem;
+    }
+
+    /* Modal */
+    .modal {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        z-index: 1000;
+    }
+
+    .modal.active {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .modal-overlay {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0,0,0,0.5);
+    }
+
+    .modal-content {
+        background: white;
+        border-radius: 15px;
+        width: 90%;
+        max-width: 600px;
+        max-height: 90vh;
+        overflow-y: auto;
+        position: relative;
+        z-index: 1;
+    }
+
+    .modal-header {
+        padding: 1.5rem;
+        border-bottom: 1px solid #ecf0f1;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .modal-header h2 {
+        margin: 0;
+        color: #2c3e50;
+    }
+
+    .modal-close {
+        background: none;
+        border: none;
+        font-size: 1.5rem;
+        color: #bdc3c7;
+        cursor: pointer;
+    }
+
+    .modal-body {
+        padding: 1.5rem;
+    }
+
+    .form-group {
+        margin-bottom: 1.5rem;
+    }
+
+    .form-group label {
+        display: block;
+        margin-bottom: 0.5rem;
+        color: #2c3e50;
+        font-weight: 500;
+    }
+
+    .form-group textarea {
+        width: 100%;
+        padding: 1rem;
+        border: 2px solid #ecf0f1;
+        border-radius: 8px;
+        font-size: 1rem;
+        resize: vertical;
+        min-height: 100px;
+    }
+
+    .form-group textarea:focus {
+        outline: none;
+        border-color: #667eea;
+    }
+
+    .form-actions {
+        display: flex;
+        gap: 1rem;
+        justify-content: flex-end;
+    }
+
+    .btn-secondary {
+        background: #ecf0f1;
+        color: #2c3e50;
+        border: none;
+        padding: 0.75rem 1.5rem;
+        border-radius: 8px;
+        cursor: pointer;
+    }
+
+    .btn-primary {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border: none;
+        padding: 0.75rem 1.5rem;
+        border-radius: 8px;
+        cursor: pointer;
+    }
+
+    /* Bulk Upload Section */
+    .bulk-upload-section {
+        margin-top: 2rem;
+        padding-top: 2rem;
+        border-top: 1px solid #ecf0f1;
+    }
+
+    .upload-area {
+        border: 2px dashed #bdc3c7;
+        border-radius: 12px;
+        padding: 2rem;
+        text-align: center;
+        transition: all 0.3s;
+    }
+
+    .upload-area:hover {
+        border-color: #667eea;
+        background: rgba(102, 126, 234, 0.05);
+    }
+
+    .upload-area i {
+        font-size: 2rem;
+        color: #667eea;
+        margin-bottom: 1rem;
+    }
+
+    @media (max-width: 768px) {
+        .card-content-preview {
+            grid-template-columns: 1fr;
+        }
+        
+        .card-item {
+            grid-template-columns: 1fr;
+        }
+        
+        .card-status {
+            flex-direction: row;
+            justify-content: space-between;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="deck-view-container">
+    <!-- Deck Header -->
+    <div class="deck-header">
+        <div class="deck-header-top">
+            <h1 class="deck-title">{{ deck.deck_name }}</h1>
+            <div class="deck-actions">
+                <button class="deck-action" onclick="editDeck()">
+                    <i class="fas fa-edit"></i> Edit
+                </button>
+                <button class="deck-action danger" onclick="deleteDeck()">
+                    <i class="fas fa-trash"></i> Delete
+                </button>
+            </div>
+        </div>
+        <p class="deck-description">{{ deck.description or 'No description' }}</p>
+        <div class="deck-stats-bar">
+            <span class="deck-stat">
+                <i class="fas fa-clone"></i>
+                {{ deck.card_count or 0 }} cards
+            </span>
+            {% set due_count = cards | selectattr('status', 'equalto', 'due') | list | length %}
+            {% set new_count = cards | selectattr('status', 'equalto', 'new') | list | length %}
+            {% if due_count > 0 %}
+            <span class="deck-stat due">
+                <i class="fas fa-clock"></i>
+                {{ due_count }} due
+            </span>
+            {% endif %}
+            {% if new_count > 0 %}
+            <span class="deck-stat">
+                <i class="fas fa-sparkles"></i>
+                {{ new_count }} new
+            </span>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Study Section -->
+    <div class="study-section">
+        <a href="{{ url_for('study_session_page') }}?deck_id={{ deck.deck_id }}" class="study-button">
+            <i class="fas fa-play-circle"></i>
+            Start Study Session
+        </a>
+    </div>
+
+    <!-- Cards Section -->
+    <div class="cards-section">
+        <div class="cards-header">
+            <h2><i class="fas fa-layer-group"></i> Cards ({{ cards | length }})</h2>
+            <button class="add-card-btn" onclick="openAddCardModal()">
+                <i class="fas fa-plus"></i>
+                Add Card
+            </button>
+        </div>
+
+        <div class="cards-list">
+            {% if cards %}
+                {% for card in cards %}
+                <div class="card-item" data-card-id="{{ card.card_id }}">
+                    <div class="card-content-preview">
+                        <div class="card-side front">
+                            <div class="card-side-label">Question</div>
+                            <div class="card-side-text">{{ card.front_content }}</div>
+                        </div>
+                        <div class="card-side back">
+                            <div class="card-side-label">Answer</div>
+                            <div class="card-side-text">{{ card.back_content }}</div>
+                        </div>
+                    </div>
+                    <div class="card-status">
+                        <span class="status-badge {{ card.status }}">{{ card.status }}</span>
+                        <div class="card-actions">
+                            <button class="card-action-btn" onclick="editCard({{ card.card_id }}, '{{ card.front_content | e }}', '{{ card.back_content | e }}')" title="Edit">
+                                <i class="fas fa-edit"></i>
+                            </button>
+                            <button class="card-action-btn delete" onclick="deleteCard({{ card.card_id }})" title="Delete">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            {% else %}
+                <div class="empty-state">
+                    <i class="fas fa-clone"></i>
+                    <h3>No cards yet</h3>
+                    <p>Add your first flashcard to start learning!</p>
+                </div>
+            {% endif %}
+        </div>
+
+        <!-- Bulk Upload Section -->
+        <div class="bulk-upload-section">
+            <h3><i class="fas fa-upload"></i> Bulk Upload</h3>
+            <p style="color: #7f8c8d; margin-bottom: 1rem;">Upload multiple cards at once using CSV format</p>
+            <div class="upload-area" onclick="openBulkUploadModal()">
+                <i class="fas fa-file-csv"></i>
+                <p>Click to upload CSV file</p>
+                <small style="color: #7f8c8d;">Format: Question, Answer (one per line)</small>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Add Card Modal -->
+<div class="modal" id="addCardModal">
+    <div class="modal-overlay" onclick="closeAddCardModal()"></div>
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2 id="cardModalTitle">Add New Card</h2>
+            <button class="modal-close" onclick="closeAddCardModal()">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="modal-body">
+            <form id="cardForm" onsubmit="saveCard(event)">
+                <input type="hidden" id="editCardId" value="">
+                <div class="form-group">
+                    <label for="frontContent">
+                        <i class="fas fa-question-circle"></i> Question (Front)
+                    </label>
+                    <textarea id="frontContent" required placeholder="Enter the question or term..."></textarea>
+                </div>
+                <div class="form-group">
+                    <label for="backContent">
+                        <i class="fas fa-lightbulb"></i> Answer (Back)
+                    </label>
+                    <textarea id="backContent" required placeholder="Enter the answer or definition..."></textarea>
+                </div>
+                <div class="form-actions">
+                    <button type="button" class="btn-secondary" onclick="closeAddCardModal()">Cancel</button>
+                    <button type="submit" class="btn-primary">
+                        <i class="fas fa-save"></i> Save Card
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Bulk Upload Modal -->
+<div class="modal" id="bulkUploadModal">
+    <div class="modal-overlay" onclick="closeBulkUploadModal()"></div>
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2>Bulk Upload Cards</h2>
+            <button class="modal-close" onclick="closeBulkUploadModal()">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="modal-body">
+            <p style="margin-bottom: 1rem;">Paste your cards in CSV format (Question,Answer) or as text with each QA pair on a new line:</p>
+            <div class="form-group">
+                <textarea id="bulkData" rows="10" placeholder="Question 1,Answer 1
+Question 2,Answer 2
+Question 3,Answer 3"></textarea>
+            </div>
+            <div class="form-actions">
+                <button type="button" class="btn-secondary" onclick="closeBulkUploadModal()">Cancel</button>
+                <button type="button" class="btn-primary" onclick="uploadBulkCards()">
+                    <i class="fas fa-upload"></i> Upload Cards
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const deckId = {{ deck.deck_id }};
+
+// Add Card Modal
+function openAddCardModal() {
+    document.getElementById('cardModalTitle').textContent = 'Add New Card';
+    document.getElementById('editCardId').value = '';
+    document.getElementById('cardForm').reset();
+    document.getElementById('addCardModal').classList.add('active');
+}
+
+function closeAddCardModal() {
+    document.getElementById('addCardModal').classList.remove('active');
+}
+
+function editCard(cardId, front, back) {
+    document.getElementById('cardModalTitle').textContent = 'Edit Card';
+    document.getElementById('editCardId').value = cardId;
+    document.getElementById('frontContent').value = front;
+    document.getElementById('backContent').value = back;
+    document.getElementById('addCardModal').classList.add('active');
+}
+
+async function saveCard(event) {
+    event.preventDefault();
+    
+    const cardId = document.getElementById('editCardId').value;
+    const frontContent = document.getElementById('frontContent').value.trim();
+    const backContent = document.getElementById('backContent').value.trim();
+    
+    const isEdit = cardId !== '';
+    const url = isEdit ? `/cards/${cardId}` : `/decks/${deckId}/cards`;
+    const method = isEdit ? 'PUT' : 'POST';
+    
+    try {
+        const response = await fetch(url, {
+            method: method,
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ front_content: frontContent, back_content: backContent })
+        });
+        
+        if (response.ok) {
+            window.location.reload();
+        } else {
+            const data = await response.json();
+            alert(data.error || 'Failed to save card');
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        alert('Failed to save card');
+    }
+}
+
+async function deleteCard(cardId) {
+    if (!confirm('Are you sure you want to delete this card?')) return;
+    
+    try {
+        const response = await fetch(`/cards/${cardId}`, { method: 'DELETE' });
+        if (response.ok) {
+            window.location.reload();
+        } else {
+            alert('Failed to delete card');
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        alert('Failed to delete card');
+    }
+}
+
+async function deleteDeck() {
+    if (!confirm('Are you sure you want to delete this deck and all its cards?')) return;
+    
+    try {
+        const response = await fetch(`/decks/${deckId}/delete`, { method: 'POST' });
+        if (response.ok) {
+            window.location.href = '/flashcards';
+        } else {
+            alert('Failed to delete deck');
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        alert('Failed to delete deck');
+    }
+}
+
+// Bulk Upload Modal
+function openBulkUploadModal() {
+    document.getElementById('bulkUploadModal').classList.add('active');
+}
+
+function closeBulkUploadModal() {
+    document.getElementById('bulkUploadModal').classList.remove('active');
+    document.getElementById('bulkData').value = '';
+}
+
+async function uploadBulkCards() {
+    const bulkData = document.getElementById('bulkData').value.trim();
+    if (!bulkData) {
+        alert('Please enter some cards');
+        return;
+    }
+    
+    const lines = bulkData.split('\n').filter(line => line.trim());
+    const cards = [];
+    
+    for (const line of lines) {
+        const parts = line.split(',');
+        if (parts.length >= 2) {
+            cards.push({
+                front_content: parts[0].trim(),
+                back_content: parts.slice(1).join(',').trim()
+            });
+        }
+    }
+    
+    if (cards.length === 0) {
+        alert('No valid cards found. Use format: Question,Answer');
+        return;
+    }
+    
+    try {
+        const response = await fetch(`/decks/${deckId}/upload-cards`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ cards: cards })
+        });
+        
+        const data = await response.json();
+        alert(`${data.inserted} cards uploaded successfully!`);
+        window.location.reload();
+    } catch (error) {
+        console.error('Error:', error);
+        alert('Failed to upload cards');
+    }
+}
+
+// Keyboard shortcuts
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+        closeAddCardModal();
+        closeBulkUploadModal();
+    }
+});
+</script>
+{% endblock %}

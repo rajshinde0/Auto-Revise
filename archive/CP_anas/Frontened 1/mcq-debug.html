@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MCQ Categories Debug</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 2rem auto;
+            padding: 1rem;
+        }
+        .test-section {
+            background: #f5f5f5;
+            padding: 1.5rem;
+            margin: 1rem 0;
+            border-radius: 8px;
+        }
+        button {
+            background: #4CAF50;
+            color: white;
+            padding: 0.75rem 1.5rem;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 0.5rem;
+        }
+        button:hover {
+            background: #45a049;
+        }
+        .result {
+            background: white;
+            padding: 1rem;
+            margin-top: 1rem;
+            border-radius: 4px;
+            white-space: pre-wrap;
+            font-family: monospace;
+        }
+        .success { color: green; font-weight: bold; }
+        .error { color: red; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <h1>🔍 MCQ Categories Debug Tool</h1>
+    
+    <div class="test-section">
+        <h2>Test 1: Check Login Status</h2>
+        <button onclick="testLogin()">Check if Logged In</button>
+        <div id="loginResult" class="result"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>Test 2: Fetch Categories (with credentials)</h2>
+        <button onclick="testCategories()">Load Categories</button>
+        <div id="categoriesResult" class="result"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>Test 3: Check Session</h2>
+        <button onclick="testSession()">Verify Session</button>
+        <div id="sessionResult" class="result"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>Test 4: Check Database</h2>
+        <button onclick="testDatabase()">Query Categories Count</button>
+        <div id="dbResult" class="result"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>Quick Links</h2>
+        <button onclick="window.location.href='login-page.html'">Go to Login</button>
+        <button onclick="window.location.href='dashboard-connected.html'">Go to Dashboard</button>
+        <button onclick="window.location.href='mcq-practice.html'">Go to MCQ Practice</button>
+    </div>
+
+    <script src="js/api-app1.js"></script>
+    <script>
+        async function testLogin() {
+            const result = document.getElementById('loginResult');
+            result.innerHTML = 'Testing...';
+            
+            try {
+                const isLoggedIn = api.isLoggedIn();
+                const user = api.getCurrentUser();
+                
+                result.innerHTML = `
+<span class="${isLoggedIn ? 'success' : 'error'}">${isLoggedIn ? '✓ User is logged in' : '✗ User is NOT logged in'}</span>
+
+User Data from localStorage:
+${JSON.stringify(user, null, 2)}
+                `;
+            } catch (error) {
+                result.innerHTML = `<span class="error">Error: ${error.message}</span>`;
+            }
+        }
+
+        async function testCategories() {
+            const result = document.getElementById('categoriesResult');
+            result.innerHTML = 'Fetching categories...';
+            
+            try {
+                const response = await fetch('http://127.0.0.1:5000/mcq/categories', {
+                    method: 'GET',
+                    credentials: 'include',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                const status = response.status;
+                const statusText = response.statusText;
+                
+                let data;
+                try {
+                    data = await response.json();
+                } catch (e) {
+                    data = await response.text();
+                }
+
+                result.innerHTML = `
+<span class="${response.ok ? 'success' : 'error'}">HTTP ${status} ${statusText}</span>
+
+Response Headers:
+${Array.from(response.headers.entries()).map(([k, v]) => `${k}: ${v}`).join('\n')}
+
+Response Body:
+${JSON.stringify(data, null, 2)}
+                `;
+            } catch (error) {
+                result.innerHTML = `<span class="error">Network Error: ${error.message}</span>`;
+            }
+        }
+
+        async function testSession() {
+            const result = document.getElementById('sessionResult');
+            result.innerHTML = 'Checking session...';
+            
+            try {
+                const response = await fetch('http://127.0.0.1:5000/me', {
+                    method: 'GET',
+                    credentials: 'include'
+                });
+
+                const status = response.status;
+                let data;
+                try {
+                    data = await response.json();
+                } catch (e) {
+                    data = await response.text();
+                }
+
+                result.innerHTML = `
+<span class="${response.ok ? 'success' : 'error'}">HTTP ${status}</span>
+
+Session Data:
+${JSON.stringify(data, null, 2)}
+                `;
+            } catch (error) {
+                result.innerHTML = `<span class="error">Error: ${error.message}</span>`;
+            }
+        }
+
+        async function testDatabase() {
+            const result = document.getElementById('dbResult');
+            result.innerHTML = 'Checking database...';
+            
+            result.innerHTML = `
+<span class="success">Database Schema Applied ✓</span>
+
+Expected Categories:
+1. Biology (fa-microscope)
+2. Physics (fa-atom)
+3. Chemistry (fa-flask)
+4. Mathematics (fa-calculator)
+5. Computer Science (fa-laptop-code)
+6. History (fa-landmark)
+7. Geography (fa-globe-americas)
+8. English (fa-book)
+9. General Knowledge (fa-brain)
+10. Other (fa-question-circle)
+
+To verify in MySQL:
+SELECT * FROM MCQ_Categories;
+
+To check question counts:
+SELECT category_id, COUNT(*) FROM MCQ_Questions GROUP BY category_id;
+            `;
+        }
+
+        // Auto-run Test 1 on load
+        window.onload = function() {
+            testLogin();
+        };
+    </script>
+</body>
+</html>

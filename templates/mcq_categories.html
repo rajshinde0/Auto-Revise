@@ -1,0 +1,357 @@
+{% extends "base.html" %}
+
+{% block title %}MCQ Categories - Quiz Master{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<style>
+    .categories-container {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 2rem;
+    }
+
+    /* Page Header */
+    .page-header {
+        text-align: center;
+        margin-bottom: 3rem;
+    }
+
+    .page-header h1 {
+        font-size: 2.5rem;
+        color: #2c3e50;
+        margin-bottom: 0.5rem;
+    }
+
+    .page-header p {
+        color: #7f8c8d;
+        font-size: 1.1rem;
+    }
+
+    /* Category Grid */
+    .categories-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+        gap: 1.5rem;
+    }
+
+    /* Category Card */
+    .category-card {
+        background: white;
+        border-radius: 15px;
+        padding: 2rem;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        transition: all 0.3s ease;
+        cursor: pointer;
+        text-decoration: none;
+        display: block;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .category-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 4px;
+        background: linear-gradient(135deg, var(--cat-color-1) 0%, var(--cat-color-2) 100%);
+    }
+
+    .category-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 10px 30px rgba(0,0,0,0.15);
+    }
+
+    .category-icon {
+        width: 60px;
+        height: 60px;
+        border-radius: 15px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.5rem;
+        margin-bottom: 1rem;
+        background: linear-gradient(135deg, var(--cat-color-1) 0%, var(--cat-color-2) 100%);
+        color: white;
+    }
+
+    .category-name {
+        font-size: 1.3rem;
+        font-weight: bold;
+        color: #2c3e50;
+        margin-bottom: 0.5rem;
+    }
+
+    .category-description {
+        color: #7f8c8d;
+        font-size: 0.9rem;
+        margin-bottom: 1rem;
+        line-height: 1.4;
+    }
+
+    .category-stats {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding-top: 1rem;
+        border-top: 1px solid #ecf0f1;
+    }
+
+    .category-stat {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        color: #7f8c8d;
+        font-size: 0.85rem;
+    }
+
+    .category-stat i {
+        color: #667eea;
+    }
+
+    .start-btn {
+        background: linear-gradient(135deg, var(--cat-color-1) 0%, var(--cat-color-2) 100%);
+        color: white;
+        border: none;
+        padding: 0.5rem 1rem;
+        border-radius: 20px;
+        font-size: 0.85rem;
+        font-weight: bold;
+        cursor: pointer;
+        transition: all 0.3s;
+    }
+
+    .start-btn:hover {
+        transform: scale(1.05);
+    }
+
+    /* Category Colors */
+    .category-card.physics { --cat-color-1: #667eea; --cat-color-2: #764ba2; }
+    .category-card.chemistry { --cat-color-1: #f093fb; --cat-color-2: #f5576c; }
+    .category-card.biology { --cat-color-1: #4facfe; --cat-color-2: #00f2fe; }
+    .category-card.mathematics { --cat-color-1: #43e97b; --cat-color-2: #38f9d7; }
+    .category-card.history { --cat-color-1: #fa709a; --cat-color-2: #fee140; }
+    .category-card.geography { --cat-color-1: #a8edea; --cat-color-2: #fed6e3; }
+    .category-card.computer { --cat-color-1: #5ee7df; --cat-color-2: #b490ca; }
+    .category-card.general { --cat-color-1: #d299c2; --cat-color-2: #fef9d7; }
+    .category-card.english { --cat-color-1: #89f7fe; --cat-color-2: #66a6ff; }
+    .category-card.science { --cat-color-1: #ffecd2; --cat-color-2: #fcb69f; }
+    .category-card.default { --cat-color-1: #667eea; --cat-color-2: #764ba2; }
+
+    /* Stats Section */
+    .stats-section {
+        background: white;
+        border-radius: 15px;
+        padding: 2rem;
+        margin-bottom: 2rem;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+    }
+
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 1.5rem;
+    }
+
+    .stat-card {
+        text-align: center;
+        padding: 1rem;
+    }
+
+    .stat-value {
+        font-size: 2.5rem;
+        font-weight: bold;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+    }
+
+    .stat-label {
+        color: #7f8c8d;
+        font-size: 0.9rem;
+    }
+
+    /* Progress Ring */
+    .progress-ring {
+        width: 100px;
+        height: 100px;
+        margin: 0 auto 0.5rem;
+    }
+
+    .progress-ring-circle {
+        transition: stroke-dashoffset 0.35s;
+        transform: rotate(-90deg);
+        transform-origin: 50% 50%;
+    }
+
+    /* Empty State */
+    .empty-state {
+        text-align: center;
+        padding: 3rem;
+        color: #7f8c8d;
+    }
+
+    .empty-state i {
+        font-size: 4rem;
+        margin-bottom: 1rem;
+        opacity: 0.5;
+    }
+
+    @media (max-width: 768px) {
+        .page-header h1 {
+            font-size: 2rem;
+        }
+        
+        .categories-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="categories-container">
+    <!-- Page Header -->
+    <div class="page-header">
+        <h1><i class="fas fa-graduation-cap"></i> MCQ Practice</h1>
+        <p>Choose a category and test your knowledge with multiple choice questions</p>
+    </div>
+
+    <!-- User Stats Section -->
+    <div class="stats-section">
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-value">{{ user_stats.total_attempted or 0 }}</div>
+                <div class="stat-label">Questions Attempted</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value">{{ user_stats.correct_answers or 0 }}</div>
+                <div class="stat-label">Correct Answers</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value">{{ "%.1f"|format(user_stats.accuracy or 0) }}%</div>
+                <div class="stat-label">Overall Accuracy</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value">{{ user_stats.points or 0 }}</div>
+                <div class="stat-label">Total Points</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Categories Grid -->
+    <div class="categories-grid">
+        {% if categories %}
+            {% for category in categories %}
+            {% set cat_class = category.category_name|lower|replace(' ', '') %}
+            <a href="{{ url_for('quiz', subject=category.category_name|lower) }}" class="category-card {{ cat_class if cat_class in ['physics', 'chemistry', 'biology', 'mathematics', 'history', 'geography', 'computer', 'general', 'english', 'science'] else 'default' }}">
+                <div class="category-icon">
+                    {% if cat_class == 'physics' %}
+                        <i class="fas fa-atom"></i>
+                    {% elif cat_class == 'chemistry' %}
+                        <i class="fas fa-flask"></i>
+                    {% elif cat_class == 'biology' %}
+                        <i class="fas fa-dna"></i>
+                    {% elif cat_class == 'mathematics' or cat_class == 'maths' %}
+                        <i class="fas fa-calculator"></i>
+                    {% elif cat_class == 'history' %}
+                        <i class="fas fa-landmark"></i>
+                    {% elif cat_class == 'geography' %}
+                        <i class="fas fa-globe-americas"></i>
+                    {% elif cat_class == 'computer' or cat_class == 'computerscience' %}
+                        <i class="fas fa-laptop-code"></i>
+                    {% elif cat_class == 'general' or cat_class == 'generalknowledge' %}
+                        <i class="fas fa-brain"></i>
+                    {% elif cat_class == 'english' %}
+                        <i class="fas fa-book"></i>
+                    {% elif cat_class == 'science' %}
+                        <i class="fas fa-microscope"></i>
+                    {% else %}
+                        <i class="fas fa-question-circle"></i>
+                    {% endif %}
+                </div>
+                <div class="category-name">{{ category.category_name }}</div>
+                <div class="category-description">
+                    {% if category.description %}
+                        {{ category.description }}
+                    {% else %}
+                        Test your {{ category.category_name }} knowledge with our curated questions
+                    {% endif %}
+                </div>
+                <div class="category-stats">
+                    <span class="category-stat">
+                        <i class="fas fa-question-circle"></i>
+                        {{ category.question_count or 0 }} questions
+                    </span>
+                    <button class="start-btn">Start Quiz</button>
+                </div>
+            </a>
+            {% endfor %}
+        {% else %}
+            <!-- Fallback to original subjects -->
+            <a href="{{ url_for('quiz', subject='physics') }}" class="category-card physics">
+                <div class="category-icon">
+                    <i class="fas fa-atom"></i>
+                </div>
+                <div class="category-name">Physics</div>
+                <div class="category-description">Master mechanics, thermodynamics, electromagnetism and more</div>
+                <div class="category-stats">
+                    <span class="category-stat">
+                        <i class="fas fa-question-circle"></i>
+                        Multiple questions
+                    </span>
+                    <button class="start-btn">Start Quiz</button>
+                </div>
+            </a>
+            
+            <a href="{{ url_for('quiz', subject='chemistry') }}" class="category-card chemistry">
+                <div class="category-icon">
+                    <i class="fas fa-flask"></i>
+                </div>
+                <div class="category-name">Chemistry</div>
+                <div class="category-description">Explore chemical reactions, periodic table and organic chemistry</div>
+                <div class="category-stats">
+                    <span class="category-stat">
+                        <i class="fas fa-question-circle"></i>
+                        Multiple questions
+                    </span>
+                    <button class="start-btn">Start Quiz</button>
+                </div>
+            </a>
+            
+            <a href="{{ url_for('quiz', subject='biology') }}" class="category-card biology">
+                <div class="category-icon">
+                    <i class="fas fa-dna"></i>
+                </div>
+                <div class="category-name">Biology</div>
+                <div class="category-description">Learn about cells, genetics, evolution and life sciences</div>
+                <div class="category-stats">
+                    <span class="category-stat">
+                        <i class="fas fa-question-circle"></i>
+                        Multiple questions
+                    </span>
+                    <button class="start-btn">Start Quiz</button>
+                </div>
+            </a>
+            
+            <a href="{{ url_for('quiz', subject='maths') }}" class="category-card mathematics">
+                <div class="category-icon">
+                    <i class="fas fa-calculator"></i>
+                </div>
+                <div class="category-name">Mathematics</div>
+                <div class="category-description">Practice algebra, calculus, geometry and statistics</div>
+                <div class="category-stats">
+                    <span class="category-stat">
+                        <i class="fas fa-question-circle"></i>
+                        Multiple questions
+                    </span>
+                    <button class="start-btn">Start Quiz</button>
+                </div>
+            </a>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

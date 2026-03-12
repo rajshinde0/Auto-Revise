@@ -1,0 +1,359 @@
+================================================================================
+                    AUTOREVISE DATABASE SCHEMA DOCUMENTATION
+                          DBMS Technical Specifications
+================================================================================
+
+DATABASE: autorevise_db
+ENGINE: InnoDB (supports ACID transactions and foreign key constraints)
+
+================================================================================
+FILE 1: schema2.sql - CORE DATABASE SCHEMA
+================================================================================
+
+DESCRIPTION:
+Creates the foundational database structure for the AutoRevise learning 
+management system, including user management, flashcard decks, spaced 
+repetition tracking, and gamification features.
+
+--------------------------------------------------------------------------------
+ENTITIES AND RELATIONSHIPS:
+--------------------------------------------------------------------------------
+
+1. USERS (Strong Entity)
+   - Primary Key: user_id (INT, AUTO_INCREMENT)
+   - Attributes:
+     * username: VARCHAR(50), UNIQUE, NOT NULL
+     * email: VARCHAR(255), UNIQUE, NOT NULL
+     * password_hash: VARCHAR(255), NOT NULL (bcrypt hashed)
+     * created_at: TIMESTAMP, DEFAULT CURRENT_TIMESTAMP
+     * points: INT, DEFAULT 0 (gamification metric)
+   - Constraints:
+     * UNIQUE constraints on username and email
+     * NOT NULL constraints on critical fields
+   - Cardinality: One-to-Many with Decks, StudyLog, UserAchievements
+
+2. DECKS (Weak Entity - depends on Users)
+   - Primary Key: deck_id (INT, AUTO_INCREMENT)
+   - Foreign Key: user_id REFERENCES Users(user_id)
+   - Attributes:
+     * deck_name: VARCHAR(100), NOT NULL
+     * description: TEXT, NULL
+     * created_at: TIMESTAMP, DEFAULT CURRENT_TIMESTAMP
+   - Referential Integrity: ON DELETE CASCADE (if user deleted, decks deleted)
+   - Cardinality: Many-to-One with Users, One-to-Many with Cards
+
+3. CARDS (Weak Entity - depends on Decks)
+   - Primary Key: card_id (INT, AUTO_INCREMENT)
+   - Foreign Key: deck_id REFERENCES Decks(deck_id)
+   - Attributes:
+     * front_content: TEXT, NOT NULL (question/prompt)
+     * back_content: TEXT, NOT NULL (answer)
+     * created_at: TIMESTAMP, DEFAULT CURRENT_TIMESTAMP
+   - Referential Integrity: ON DELETE CASCADE (cascading deletion)
+   - Cardinality: Many-to-One with Decks, One-to-Many with CardPerformance
+
+4. CARDPERFORMANCE (Associative Entity - Many-to-Many relationship)
+   - Primary Key: performance_id (INT, AUTO_INCREMENT)
+   - Foreign Keys:
+     * user_id REFERENCES Users(user_id)
+     * card_id REFERENCES Cards(card_id)
+   - Composite Unique Key: (user_id, card_id) - prevents duplicate tracking
+   - Attributes:
+     * next_review_date: DATE, NOT NULL (spaced repetition algorithm)
+     * interval: INT, DEFAULT 1 (days until next review)
+     * ease_factor: DECIMAL(4,2), DEFAULT 2.50 (SuperMemo SM-2 algorithm)
+   - Referential Integrity: ON DELETE CASCADE on both foreign keys
+   - Purpose: Implements spaced repetition learning algorithm
+
+5. STUDYLOG (Associative Entity - tracks user activity)
+   - Primary Key: log_id (INT, AUTO_INCREMENT)
+   - Foreign Key: user_id REFERENCES Users(user_id)
+   - Composite Unique Key: (user_id, study_date) - one record per user per day
+   - Attributes:
+     * study_date: DATE, NOT NULL
+     * cards_reviewed: INT, DEFAULT 0
+   - Referential Integrity: ON DELETE CASCADE
+   - Purpose: Enables streak calculation and activity tracking
+
+6. ACHIEVEMENTS (Strong Entity - Reference/Lookup Table)
+   - Primary Key: achievement_id (INT, AUTO_INCREMENT)
+   - Attributes:
+     * name: VARCHAR(100), UNIQUE, NOT NULL
+     * description: VARCHAR(255), NOT NULL
+     * icon_url: VARCHAR(255), NULL
+   - Cardinality: One-to-Many with UserAchievements
+   - Pre-populated Data: 6 achievements (First Steps, Card Collector, etc.)
+
+7. USERACHIEVEMENTS (Associative Entity - Many-to-Many relationship)
+   - Composite Primary Key: (user_id, achievement_id)
+   - Foreign Keys:
+     * user_id REFERENCES Users(user_id)
+     * achievement_id REFERENCES Achievements(achievement_id)
+   - Attributes:
+     * earned_at: TIMESTAMP, DEFAULT CURRENT_TIMESTAMP
+   - Referential Integrity: ON DELETE CASCADE on both foreign keys
+   - Purpose: Tracks which users earned which achievements
+
+--------------------------------------------------------------------------------
+NORMALIZATION:
+--------------------------------------------------------------------------------
+Schema follows 3NF (Third Normal Form):
+- 1NF: All attributes contain atomic values
+- 2NF: No partial dependencies (all non-key attributes fully dependent on PK)
+- 3NF: No transitive dependencies
+
+--------------------------------------------------------------------------------
+INDEXING STRATEGY:
+--------------------------------------------------------------------------------
+- PRIMARY KEY indexes on all tables (clustered index in InnoDB)
+- UNIQUE indexes on Users.username, Users.email, Achievements.name
+- COMPOSITE UNIQUE indexes on CardPerformance, StudyLog, UserAchievements
+- Foreign key indexes automatically created by InnoDB
+
+================================================================================
+FILE 2: schema_mcq_update.sql - MCQ FEATURE EXTENSION
+================================================================================
+
+DESCRIPTION:
+Extends the database schema to support Multiple Choice Question (MCQ) 
+functionality with admin privileges, question management, and performance 
+tracking.
+
+--------------------------------------------------------------------------------
+SCHEMA MODIFICATIONS:
+--------------------------------------------------------------------------------
+
+1. USERS TABLE ALTERATION
+   - DDL: ALTER TABLE Users ADD COLUMN is_admin BOOLEAN DEFAULT FALSE
+   - Purpose: Implements Role-Based Access Control (RBAC)
+   - Default: FALSE (non-admin user)
+
+--------------------------------------------------------------------------------
+NEW ENTITIES:
+--------------------------------------------------------------------------------
+
+1. MCQ_QUESTIONS (Strong Entity with multiple foreign keys)
+   - Primary Key: mcq_id (INT, AUTO_INCREMENT)
+   - Foreign Keys:
+     * deck_id REFERENCES Decks(deck_id) - associates MCQ with deck
+     * created_by REFERENCES Users(user_id) - tracks admin creator
+   - Attributes:
+     * question_text: TEXT, NOT NULL
+     * option_a: VARCHAR(500), NOT NULL
+     * option_b: VARCHAR(500), NOT NULL
+     * option_c: VARCHAR(500), NOT NULL
+     * option_d: VARCHAR(500), NOT NULL
+     * correct_option: ENUM('A','B','C','D'), NOT NULL (domain constraint)
+     * explanation: TEXT, NULL (optional feedback)
+     * difficulty: ENUM('easy','medium','hard'), DEFAULT 'medium'
+     * created_at: TIMESTAMP, DEFAULT CURRENT_TIMESTAMP
+   - Referential Integrity: ON DELETE CASCADE
+   - Indexes:
+     * idx_deck_mcq on deck_id (query optimization)
+     * idx_difficulty on difficulty (filtering)
+   - Constraints: ENUM enforces domain integrity
+
+2. MCQ_PERFORMANCE (Associative Entity - tracks user attempts)
+   - Primary Key: mcq_performance_id (INT, AUTO_INCREMENT)
+   - Foreign Keys:
+     * user_id REFERENCES Users(user_id)
+     * mcq_id REFERENCES MCQ_Questions(mcq_id)
+   - Composite Unique Key: (user_id, mcq_id)
+   - Attributes:
+     * last_attempt_date: DATETIME, DEFAULT CURRENT_TIMESTAMP
+     * times_attempted: INT, DEFAULT 0
+     * times_correct: INT, DEFAULT 0
+     * next_review_date: DATE, NULL (spaced repetition integration)
+   - Referential Integrity: ON DELETE CASCADE
+   - Index: idx_next_review on next_review_date
+   - Purpose: Analytics and spaced repetition for MCQs
+
+3. MCQ_UPLOAD_LOG (Audit Table - tracks bulk operations)
+   - Primary Key: upload_id (INT, AUTO_INCREMENT)
+   - Foreign Key: admin_id REFERENCES Users(user_id)
+   - Attributes:
+     * filename: VARCHAR(255), NOT NULL
+     * total_questions: INT, NOT NULL
+     * successful_imports: INT, NOT NULL
+     * failed_imports: INT, NOT NULL
+     * upload_date: TIMESTAMP, DEFAULT CURRENT_TIMESTAMP
+   - Referential Integrity: ON DELETE CASCADE
+   - Purpose: Audit trail for admin CSV bulk uploads
+
+--------------------------------------------------------------------------------
+DATA INTEGRITY FEATURES:
+--------------------------------------------------------------------------------
+- ENUM types enforce domain constraints (valid values only)
+- Composite unique keys prevent duplicate performance records
+- Cascading deletes maintain referential integrity
+- Audit logging for administrative operations
+
+================================================================================
+FILE 3: schema_mcq_categories.sql - CATEGORY TAXONOMY EXTENSION
+================================================================================
+
+DESCRIPTION:
+Implements hierarchical categorization for MCQ questions, enabling organized
+browsing and filtering by subject area.
+
+--------------------------------------------------------------------------------
+SCHEMA MODIFICATIONS:
+--------------------------------------------------------------------------------
+
+1. MCQ_CATEGORIES (Strong Entity - Lookup/Reference Table)
+   - Primary Key: category_id (INT, AUTO_INCREMENT)
+   - Attributes:
+     * category_name: VARCHAR(100), UNIQUE, NOT NULL
+     * description: TEXT, NULL
+     * icon: VARCHAR(50), NULL (CSS icon class names)
+     * created_at: TIMESTAMP, DEFAULT CURRENT_TIMESTAMP
+   - Index: idx_category_name (for text searches)
+   - Pre-populated Data: 10 categories (Biology, Physics, Chemistry, etc.)
+   - INSERT ... ON DUPLICATE KEY UPDATE: Idempotent operation
+
+2. MCQ_QUESTIONS TABLE ALTERATION
+   - DDL: ALTER TABLE MCQ_Questions ADD COLUMN category_id INT NULL
+   - Foreign Key: category_id REFERENCES MCQ_Categories(category_id)
+   - Referential Integrity: ON DELETE SET NULL (orphan questions allowed)
+   - Index: idx_category on category_id
+   - Position: AFTER deck_id (column ordering)
+
+3. MCQ_UPLOAD_LOG TABLE ALTERATION
+   - DDL: ALTER TABLE MCQ_Upload_Log ADD COLUMN category_id INT NULL
+   - Foreign Key: category_id REFERENCES MCQ_Categories(category_id)
+   - Referential Integrity: ON DELETE SET NULL
+   - Position: AFTER filename
+   - Purpose: Track which category bulk uploads target
+
+--------------------------------------------------------------------------------
+RELATIONSHIP MODIFICATIONS:
+--------------------------------------------------------------------------------
+- Creates One-to-Many relationship: MCQ_Categories → MCQ_Questions
+- Optional relationship (NULL allowed) - questions can exist without category
+- ON DELETE SET NULL prevents cascading deletion of questions
+
+--------------------------------------------------------------------------------
+PRE-POPULATED CATEGORIES:
+--------------------------------------------------------------------------------
+1. Biology (fa-microscope)
+2. Physics (fa-atom)
+3. Chemistry (fa-flask)
+4. Mathematics (fa-calculator)
+5. Computer Science (fa-laptop-code)
+6. History (fa-landmark)
+7. Geography (fa-globe-americas)
+8. English (fa-book)
+9. General Knowledge (fa-brain)
+10. Other (fa-question-circle) - default/miscellaneous
+
+================================================================================
+OVERALL DATABASE DESIGN PRINCIPLES
+================================================================================
+
+1. NORMALIZATION: All schemas follow 3NF to minimize redundancy
+
+2. REFERENTIAL INTEGRITY:
+   - Foreign key constraints enforce relationships
+   - CASCADE operations maintain data consistency
+   - SET NULL for optional relationships
+
+3. INDEXING STRATEGY:
+   - Primary keys (clustered indexes)
+   - Foreign keys (InnoDB automatic indexing)
+   - Custom indexes on frequently queried columns
+   - Composite unique indexes prevent duplicates
+
+4. DATA TYPES:
+   - INT for identifiers (4 bytes, 2 billion+ records)
+   - VARCHAR for limited text (efficient storage)
+   - TEXT for unlimited content
+   - ENUM for constrained choices (1-2 bytes)
+   - TIMESTAMP for audit trails
+   - DECIMAL for precise numeric values
+
+5. CONSTRAINTS:
+   - PRIMARY KEY: Uniqueness and non-null
+   - FOREIGN KEY: Referential integrity
+   - UNIQUE: Prevent duplicates
+   - NOT NULL: Mandatory fields
+   - DEFAULT: Sensible defaults
+   - ENUM: Domain integrity
+
+6. NAMING CONVENTIONS:
+   - PascalCase for table names
+   - snake_case for column names
+   - Descriptive FK names
+   - idx_ prefix for indexes
+
+7. STORAGE ENGINE: InnoDB
+   - ACID compliance (Atomicity, Consistency, Isolation, Durability)
+   - Row-level locking for concurrency
+   - Foreign key constraint support
+   - Crash recovery
+
+8. SCALABILITY FEATURES:
+   - AUTO_INCREMENT for sequential IDs
+   - Indexed foreign keys for JOIN performance
+   - Date partitioning ready (next_review_date, study_date)
+   - Audit tables for historical data
+
+================================================================================
+ENTITY-RELATIONSHIP DIAGRAM SUMMARY
+================================================================================
+
+Users (1) ──────< (M) Decks (1) ──────< (M) Cards
+  │                                        │
+  │                                        │
+  │ (M)                                    │ (M)
+  │                                        │
+  └──> StudyLog                  CardPerformance <────┘
+  │                                        
+  │ (M)                          Users (1) ────────< (M) MCQ_Questions
+  │                                │                      │
+  └──> UserAchievements            │                      │ (M)
+         │ (M)                     │ (M)                  │
+         │                         │                      │
+    Achievements (1)      MCQ_Performance <───────────────┘
+                                   │
+                          MCQ_Categories (1) ────────< (M) MCQ_Questions
+                                   │
+                                   │ (M)
+                                   │
+                          MCQ_Upload_Log
+
+LEGEND:
+(1) = One
+(M) = Many
+──< = One-to-Many relationship
+──> = Foreign Key reference
+
+================================================================================
+QUERY OPTIMIZATION CONSIDERATIONS
+================================================================================
+
+1. Frequently Used JOINs:
+   - Users ⋈ Decks ⋈ Cards (deck browsing)
+   - CardPerformance ⋈ Cards (study sessions)
+   - MCQ_Questions ⋈ MCQ_Categories (category browsing)
+
+2. Common WHERE Clauses:
+   - user_id filtering (indexed via FK)
+   - next_review_date <= CURDATE() (indexed)
+   - category_id filtering (indexed)
+
+3. Aggregate Queries:
+   - COUNT(*) for statistics
+   - SUM(points) for leaderboards
+   - AVG(accuracy) for performance metrics
+
+4. Date Range Queries:
+   - study_date for streak calculations
+   - created_at for temporal analysis
+
+================================================================================
+END OF DOCUMENTATION
+================================================================================
+Generated: December 3, 2025
+Database Version: MySQL 8.0+
+Schema Files: schema2.sql, schema_mcq_update.sql, schema_mcq_categories.sql
+================================================================================

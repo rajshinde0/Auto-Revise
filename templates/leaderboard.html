@@ -1,0 +1,507 @@
+{% extends "base.html" %}
+
+{% block title %}Leaderboard - Quiz Master{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<style>
+    .leaderboard-container {
+        max-width: 900px;
+        margin: 0 auto;
+        padding: 2rem;
+    }
+
+    /* Page Header */
+    .page-header {
+        text-align: center;
+        margin-bottom: 3rem;
+    }
+
+    .page-header h1 {
+        font-size: 2.5rem;
+        color: #2c3e50;
+        margin-bottom: 0.5rem;
+    }
+
+    .page-header h1 i {
+        color: #f39c12;
+    }
+
+    .page-header p {
+        color: #7f8c8d;
+        font-size: 1.1rem;
+    }
+
+    /* Top 3 Podium */
+    .podium-section {
+        display: flex;
+        justify-content: center;
+        align-items: flex-end;
+        gap: 1rem;
+        margin-bottom: 3rem;
+        padding: 2rem 0;
+    }
+
+    .podium-card {
+        background: white;
+        border-radius: 15px;
+        padding: 1.5rem;
+        text-align: center;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        transition: all 0.3s;
+        width: 180px;
+    }
+
+    .podium-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+    }
+
+    .podium-card.first {
+        transform: translateY(-20px);
+        border-top: 4px solid #f39c12;
+    }
+
+    .podium-card.second {
+        border-top: 4px solid #95a5a6;
+    }
+
+    .podium-card.third {
+        border-top: 4px solid #cd6133;
+    }
+
+    .rank-badge {
+        width: 60px;
+        height: 60px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 auto 1rem;
+        font-size: 1.5rem;
+        font-weight: bold;
+        color: white;
+    }
+
+    .rank-badge.gold {
+        background: linear-gradient(135deg, #f39c12 0%, #f1c40f 100%);
+        box-shadow: 0 4px 15px rgba(241, 196, 15, 0.5);
+    }
+
+    .rank-badge.silver {
+        background: linear-gradient(135deg, #7f8c8d 0%, #bdc3c7 100%);
+        box-shadow: 0 4px 15px rgba(189, 195, 199, 0.5);
+    }
+
+    .rank-badge.bronze {
+        background: linear-gradient(135deg, #cd6133 0%, #e67e22 100%);
+        box-shadow: 0 4px 15px rgba(230, 126, 34, 0.5);
+    }
+
+    .podium-avatar {
+        width: 70px;
+        height: 70px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 auto 1rem;
+        font-size: 1.8rem;
+        font-weight: bold;
+        color: white;
+    }
+
+    .podium-name {
+        font-size: 1.1rem;
+        font-weight: bold;
+        color: #2c3e50;
+        margin-bottom: 0.5rem;
+    }
+
+    .podium-points {
+        font-size: 1.3rem;
+        font-weight: bold;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+    }
+
+    .podium-stats {
+        display: flex;
+        justify-content: center;
+        gap: 1rem;
+        margin-top: 0.5rem;
+        font-size: 0.8rem;
+        color: #7f8c8d;
+    }
+
+    /* Leaderboard Table */
+    .leaderboard-section {
+        background: white;
+        border-radius: 15px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        overflow: hidden;
+    }
+
+    .leaderboard-header {
+        padding: 1.5rem;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+    }
+
+    .leaderboard-header h2 {
+        margin: 0;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .leaderboard-list {
+        padding: 0;
+        margin: 0;
+        list-style: none;
+    }
+
+    .leaderboard-item {
+        display: grid;
+        grid-template-columns: 60px 1fr auto;
+        align-items: center;
+        padding: 1rem 1.5rem;
+        border-bottom: 1px solid #ecf0f1;
+        transition: all 0.3s;
+    }
+
+    .leaderboard-item:hover {
+        background: #f8f9fa;
+    }
+
+    .leaderboard-item.current-user {
+        background: rgba(102, 126, 234, 0.1);
+        border-left: 4px solid #667eea;
+    }
+
+    .leaderboard-item:last-child {
+        border-bottom: none;
+    }
+
+    .rank {
+        font-size: 1.2rem;
+        font-weight: bold;
+        color: #7f8c8d;
+        text-align: center;
+    }
+
+    .rank.top-3 {
+        width: 35px;
+        height: 35px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-size: 0.9rem;
+    }
+
+    .rank.rank-1 { background: linear-gradient(135deg, #f39c12 0%, #f1c40f 100%); }
+    .rank.rank-2 { background: linear-gradient(135deg, #7f8c8d 0%, #bdc3c7 100%); }
+    .rank.rank-3 { background: linear-gradient(135deg, #cd6133 0%, #e67e22 100%); }
+
+    .user-info {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+    }
+
+    .user-avatar {
+        width: 45px;
+        height: 45px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: bold;
+        color: white;
+    }
+
+    .user-details h3 {
+        margin: 0;
+        font-size: 1rem;
+        color: #2c3e50;
+    }
+
+    .user-details span {
+        font-size: 0.85rem;
+        color: #7f8c8d;
+    }
+
+    .user-stats {
+        display: flex;
+        gap: 2rem;
+        align-items: center;
+    }
+
+    .stat-item {
+        text-align: right;
+    }
+
+    .stat-item .value {
+        font-size: 1.2rem;
+        font-weight: bold;
+        color: #2c3e50;
+    }
+
+    .stat-item .label {
+        font-size: 0.75rem;
+        color: #7f8c8d;
+        text-transform: uppercase;
+    }
+
+    /* Time Filter */
+    .time-filter {
+        display: flex;
+        justify-content: center;
+        gap: 0.5rem;
+        margin-bottom: 2rem;
+    }
+
+    .filter-btn {
+        background: white;
+        border: 2px solid #ecf0f1;
+        padding: 0.5rem 1.5rem;
+        border-radius: 25px;
+        cursor: pointer;
+        color: #7f8c8d;
+        font-weight: 500;
+        transition: all 0.3s;
+    }
+
+    .filter-btn:hover {
+        border-color: #667eea;
+        color: #667eea;
+    }
+
+    .filter-btn.active {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border-color: transparent;
+    }
+
+    /* Your Rank Card */
+    .your-rank-card {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border-radius: 15px;
+        padding: 2rem;
+        margin-bottom: 2rem;
+        color: white;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .your-rank-info h2 {
+        margin: 0 0 0.5rem 0;
+        font-size: 1.5rem;
+    }
+
+    .your-rank-info p {
+        margin: 0;
+        opacity: 0.9;
+    }
+
+    .your-rank-value {
+        text-align: center;
+    }
+
+    .your-rank-value .rank-num {
+        font-size: 3rem;
+        font-weight: bold;
+    }
+
+    .your-rank-value span {
+        display: block;
+        font-size: 0.9rem;
+        opacity: 0.9;
+    }
+
+    /* Empty State */
+    .empty-state {
+        text-align: center;
+        padding: 3rem;
+        color: #7f8c8d;
+    }
+
+    .empty-state i {
+        font-size: 4rem;
+        margin-bottom: 1rem;
+        opacity: 0.5;
+    }
+
+    @media (max-width: 768px) {
+        .podium-section {
+            flex-direction: column;
+            align-items: center;
+        }
+        
+        .podium-card.first {
+            transform: none;
+            order: -1;
+        }
+        
+        .user-stats {
+            display: none;
+        }
+        
+        .your-rank-card {
+            flex-direction: column;
+            text-align: center;
+            gap: 1rem;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="leaderboard-container">
+    <!-- Page Header -->
+    <div class="page-header">
+        <h1><i class="fas fa-trophy"></i> Leaderboard</h1>
+        <p>See how you rank against other learners</p>
+    </div>
+
+    {% if current_user_rank %}
+    <!-- Your Rank Card -->
+    <div class="your-rank-card">
+        <div class="your-rank-info">
+            <h2>Your Current Rank</h2>
+            <p>Keep studying to climb the leaderboard!</p>
+        </div>
+        <div class="your-rank-value">
+            <div class="rank-num">#{{ current_user_rank }}</div>
+            <span>{{ current_user_points }} points</span>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Time Filter -->
+    <div class="time-filter">
+        <button class="filter-btn active" data-period="all">All Time</button>
+        <button class="filter-btn" data-period="month">This Month</button>
+        <button class="filter-btn" data-period="week">This Week</button>
+    </div>
+
+    {% if leaderboard and leaderboard|length >= 3 %}
+    <!-- Top 3 Podium -->
+    <div class="podium-section">
+        <!-- Second Place -->
+        <div class="podium-card second">
+            <div class="rank-badge silver">2</div>
+            <div class="podium-avatar">{{ leaderboard[1].username[0]|upper }}</div>
+            <div class="podium-name">{{ leaderboard[1].username }}</div>
+            <div class="podium-points">{{ leaderboard[1].points }} pts</div>
+            <div class="podium-stats">
+                <span><i class="fas fa-check"></i> {{ leaderboard[1].quizzes_taken or 0 }}</span>
+                <span><i class="fas fa-trophy"></i> {{ leaderboard[1].achievements_count or 0 }}</span>
+            </div>
+        </div>
+        
+        <!-- First Place -->
+        <div class="podium-card first">
+            <div class="rank-badge gold">1</div>
+            <div class="podium-avatar">{{ leaderboard[0].username[0]|upper }}</div>
+            <div class="podium-name">{{ leaderboard[0].username }}</div>
+            <div class="podium-points">{{ leaderboard[0].points }} pts</div>
+            <div class="podium-stats">
+                <span><i class="fas fa-check"></i> {{ leaderboard[0].quizzes_taken or 0 }}</span>
+                <span><i class="fas fa-trophy"></i> {{ leaderboard[0].achievements_count or 0 }}</span>
+            </div>
+        </div>
+        
+        <!-- Third Place -->
+        <div class="podium-card third">
+            <div class="rank-badge bronze">3</div>
+            <div class="podium-avatar">{{ leaderboard[2].username[0]|upper }}</div>
+            <div class="podium-name">{{ leaderboard[2].username }}</div>
+            <div class="podium-points">{{ leaderboard[2].points }} pts</div>
+            <div class="podium-stats">
+                <span><i class="fas fa-check"></i> {{ leaderboard[2].quizzes_taken or 0 }}</span>
+                <span><i class="fas fa-trophy"></i> {{ leaderboard[2].achievements_count or 0 }}</span>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Full Leaderboard -->
+    <div class="leaderboard-section">
+        <div class="leaderboard-header">
+            <h2><i class="fas fa-list-ol"></i> Rankings</h2>
+        </div>
+        
+        {% if leaderboard %}
+        <ul class="leaderboard-list">
+            {% for user in leaderboard %}
+            <li class="leaderboard-item {% if user.user_id == session.get('user_id') %}current-user{% endif %}">
+                <div class="rank {% if loop.index <= 3 %}top-3 rank-{{ loop.index }}{% endif %}">
+                    {% if loop.index <= 3 %}
+                        {{ loop.index }}
+                    {% else %}
+                        {{ loop.index }}
+                    {% endif %}
+                </div>
+                <div class="user-info">
+                    <div class="user-avatar">{{ user.username[0]|upper }}</div>
+                    <div class="user-details">
+                        <h3>{{ user.username }}{% if user.user_id == session.get('user_id') %} (You){% endif %}</h3>
+                        <span>{{ user.achievements_count or 0 }} achievements</span>
+                    </div>
+                </div>
+                <div class="user-stats">
+                    <div class="stat-item">
+                        <div class="value">{{ user.quizzes_taken or 0 }}</div>
+                        <div class="label">Quizzes</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="value">{{ "%.0f"|format(user.avg_score or 0) }}%</div>
+                        <div class="label">Avg Score</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="value">{{ user.points }}</div>
+                        <div class="label">Points</div>
+                    </div>
+                </div>
+            </li>
+            {% endfor %}
+        </ul>
+        {% else %}
+        <div class="empty-state">
+            <i class="fas fa-users"></i>
+            <h3>No rankings yet</h3>
+            <p>Be the first to earn points and climb the leaderboard!</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.querySelectorAll('.filter-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+        // Update active state
+        document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        
+        // Reload with filter
+        const period = btn.dataset.period;
+        window.location.href = `{{ url_for('leaderboard') }}?period=${period}`;
+    });
+});
+
+// Set active filter from URL
+const urlParams = new URLSearchParams(window.location.search);
+const currentPeriod = urlParams.get('period') || 'all';
+document.querySelector(`.filter-btn[data-period="${currentPeriod}"]`)?.classList.add('active');
+</script>
+{% endblock %}

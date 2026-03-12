@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+
+{% block title %}Access Denied - MCQ Quiz{% endblock %}
+
+{% block content %}
+<div class="container" style="max-width: 600px; margin-top: 100px;">
+    <div class="card" style="text-align: center; padding: 50px;">
+        <div style="font-size: 120px; color: #ffc107;">🔒</div>
+        <h1 style="color: #ffc107; font-size: 72px; margin: 20px 0;">403</h1>
+        <h2 style="margin-bottom: 20px;">Access Denied</h2>
+        <p style="color: #666; font-size: 18px; margin-bottom: 30px;">
+            You don't have permission to access this page.<br>
+            {% if not session.get('user_id') %}
+            Please log in to continue.
+            {% else %}
+            This page requires special permissions.
+            {% endif %}
+        </p>
+        <div style="display: flex; gap: 15px; justify-content: center; flex-wrap: wrap;">
+            {% if not session.get('user_id') %}
+            <a href="{{ url_for('login') }}" class="btn btn-primary" style="padding: 12px 30px; text-decoration: none; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border-radius: 8px; font-weight: 600;">
+                🔑 Login
+            </a>
+            {% endif %}
+            <a href="{{ url_for('index') }}" class="btn btn-secondary" style="padding: 12px 30px; text-decoration: none; background: #6c757d; color: white; border-radius: 8px; font-weight: 600;">
+                🏠 Go to Home
+            </a>
+        </div>
+    </div>
+</div>
+{% endblock %}
