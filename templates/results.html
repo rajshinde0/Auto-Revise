@@ -1,0 +1,97 @@
+{% extends "base.html" %}
+
+{% block title %}My Results{% endblock %}
+
+{% block content %}
+<div class="results-page">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+        <h1>My Quiz History</h1>
+        <a href="/achievements" class="btn btn-primary" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 12px 25px; border-radius: 25px; text-decoration: none; color: white;">
+            🏆 View Achievements
+        </a>
+    </div>
+
+    {% if results %}
+    <div class="results-table-container">
+        <table class="results-table">
+            <thead>
+                <tr>
+                    <th>Subject</th>
+                    <th>Score</th>
+                    <th>Total Questions</th>
+                    <th>Percentage</th>
+                    <th>Date & Time</th>
+                    <th>Grade</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for result in results %}
+                <tr>
+                    <td><span class="subject-badge">{{ result.subject }}</span></td>
+                    <td>{{ result.score }}</td>
+                    <td>{{ result.total_questions }}</td>
+                    <td>
+    <div class="percentage-bar">
+        {% set width_value = result.percentage or 0 %}
+        {% if width_value > 100 %}
+            {% set width_value = 100 %}
+        {% endif %}
+        <div class="percentage-fill" style="width: {{ width_value }}%"></div>
+        <span class="percentage-text">{{ "%.1f"|format(width_value) }}%</span>
+    </div>
+</td>
+
+
+                    <td>{{ result.submitted_at.strftime('%Y-%m-%d %H:%M') }}</td>
+                    <td>
+                        {% if result.percentage >= 80 %}
+                        <span class="grade grade-a">A</span>
+                        {% elif result.percentage >= 60 %}
+                        <span class="grade grade-b">B</span>
+                        {% elif result.percentage >= 40 %}
+                        <span class="grade grade-c">C</span>
+                        {% else %}
+                        <span class="grade grade-f">F</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <a href="/review_quiz/{{ result.result_id }}" class="btn-view-marked">
+                            � Review Quiz
+                        </a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <div class="stats-summary">
+        <h2>Performance Overview</h2>
+        <div class="stats-grid">
+            <div class="stat-card">
+                <h3>Total Quizzes</h3>
+                <p class="stat-number">{{ results|length }}</p>
+            </div>
+            <div class="stat-card">
+                <h3>Average Score</h3>
+                <p class="stat-number">{{ "%.1f"|format((results|sum(attribute='percentage'))/(results|length)) }}%</p>
+            </div>
+            <div class="stat-card">
+                <h3>Best Subject</h3>
+                <p class="stat-number">
+                    {% set best = results|sort(attribute='percentage', reverse=True)|first %}
+                    {{ best.subject if best else 'N/A' }}
+                </p>
+            </div>
+        </div>
+    </div>
+    {% else %}
+    <div class="empty-state">
+        <h2>No quiz results yet</h2>
+        <p>Start taking quizzes to see your results here!</p>
+        <a href="/" class="btn btn-primary">Take a Quiz</a>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

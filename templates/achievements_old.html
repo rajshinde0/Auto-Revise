@@ -1,0 +1,257 @@
+{% extends "base.html" %}
+
+{% block title %}Achievements{% endblock %}
+
+{% block content %}
+<style>
+    .achievements-page {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 20px;
+    }
+    
+    .page-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 40px;
+        border-radius: 20px;
+        text-align: center;
+        margin-bottom: 40px;
+        box-shadow: 0 10px 30px rgba(102, 126, 234, 0.3);
+    }
+    
+    .page-header h1 {
+        margin: 0;
+        font-size: 42px;
+        margin-bottom: 10px;
+    }
+    
+    .progress-summary {
+        font-size: 24px;
+        margin-top: 15px;
+        opacity: 0.95;
+    }
+    
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 20px;
+        margin-bottom: 40px;
+    }
+    
+    .stat-card {
+        background: white;
+        padding: 25px;
+        border-radius: 15px;
+        text-align: center;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        transition: transform 0.3s;
+    }
+    
+    .stat-card:hover {
+        transform: translateY(-5px);
+    }
+    
+    .stat-icon {
+        font-size: 36px;
+        margin-bottom: 10px;
+    }
+    
+    .stat-value {
+        font-size: 32px;
+        font-weight: bold;
+        color: #667eea;
+        margin: 10px 0 5px 0;
+    }
+    
+    .stat-label {
+        color: #666;
+        font-size: 14px;
+    }
+    
+    .achievements-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+        gap: 25px;
+    }
+    
+    .achievement-card {
+        background: white;
+        border-radius: 15px;
+        padding: 25px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        transition: all 0.3s;
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .achievement-card.unlocked {
+        border: 3px solid #28a745;
+        background: linear-gradient(135deg, #f0fff4 0%, #c6f6d5 100%);
+    }
+    
+    .achievement-card.locked {
+        opacity: 0.6;
+        background: #f8f9fa;
+    }
+    
+    .achievement-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+    }
+    
+    .achievement-icon {
+        font-size: 48px;
+        text-align: center;
+        margin-bottom: 15px;
+        filter: grayscale(0%);
+    }
+    
+    .achievement-card.locked .achievement-icon {
+        filter: grayscale(100%);
+        opacity: 0.5;
+    }
+    
+    .achievement-title {
+        font-size: 20px;
+        font-weight: bold;
+        color: #333;
+        margin-bottom: 10px;
+        text-align: center;
+    }
+    
+    .achievement-description {
+        font-size: 14px;
+        color: #666;
+        text-align: center;
+        margin-bottom: 15px;
+    }
+    
+    .progress-bar-container {
+        background: #e9ecef;
+        height: 10px;
+        border-radius: 5px;
+        overflow: hidden;
+        margin: 15px 0 10px 0;
+    }
+    
+    .progress-bar {
+        height: 100%;
+        background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+        border-radius: 5px;
+        transition: width 0.5s ease;
+    }
+    
+    .progress-text {
+        text-align: center;
+        font-size: 12px;
+        color: #666;
+        margin-top: 5px;
+    }
+    
+    .unlocked-badge {
+        position: absolute;
+        top: 15px;
+        right: 15px;
+        background: #28a745;
+        color: white;
+        padding: 5px 12px;
+        border-radius: 15px;
+        font-size: 12px;
+        font-weight: bold;
+    }
+    
+    .unlock-date {
+        text-align: center;
+        font-size: 11px;
+        color: #999;
+        margin-top: 10px;
+    }
+    
+    .back-link {
+        display: inline-block;
+        margin-bottom: 20px;
+        color: #667eea;
+        text-decoration: none;
+        font-size: 16px;
+        font-weight: bold;
+    }
+    
+    .back-link:hover {
+        color: #764ba2;
+    }
+    
+    .section-title {
+        font-size: 28px;
+        color: #333;
+        margin: 30px 0 20px 0;
+        padding-left: 15px;
+        border-left: 5px solid #667eea;
+    }
+</style>
+
+<div class="achievements-page">
+    <a href="/" class="back-link">← Back to Home</a>
+    
+    <div class="page-header">
+        <h1>🏆 Achievements</h1>
+        <div class="progress-summary">
+            {{ unlocked_count }} / {{ total_count }} Unlocked
+            {% set completion_percentage = (unlocked_count / total_count * 100) if total_count > 0 else 0 %}
+            ({{ "%.0f"|format(completion_percentage) }}%)
+        </div>
+    </div>
+    
+    <div class="stats-grid">
+        <div class="stat-card">
+            <div class="stat-icon">❓</div>
+            <div class="stat-value">{{ stats.total_questions_solved or 0 }}</div>
+            <div class="stat-label">Questions Solved</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon">🥇</div>
+            <div class="stat-value">{{ stats.perfect_quizzes_count or 0 }}</div>
+            <div class="stat-label">Perfect Quizzes</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon">🏆</div>
+            <div class="stat-value">{{ unlocked_count }}</div>
+            <div class="stat-label">Achievements Unlocked</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon">🌟</div>
+            <div class="stat-value">{{ "%.0f"|format(completion_percentage) }}%</div>
+            <div class="stat-label">Completion</div>
+        </div>
+    </div>
+    
+    <h2 class="section-title">All Achievements</h2>
+    
+    <div class="achievements-grid">
+        {% for achievement in achievements %}
+        <div class="achievement-card {{ 'unlocked' if achievement.is_unlocked else 'locked' }}">
+            {% if achievement.is_unlocked %}
+            <div class="unlocked-badge">✓ UNLOCKED</div>
+            {% endif %}
+            
+            <div class="achievement-icon">{{ achievement.icon }}</div>
+            <div class="achievement-title">{{ achievement.title }}</div>
+            <div class="achievement-description">{{ achievement.description }}</div>
+            
+            {% if not achievement.is_unlocked %}
+            <div class="progress-bar-container">
+                <div class="progress-bar" style="width: {{ achievement.progress }}%"></div>
+            </div>
+            <div class="progress-text">
+                Progress: {{ achievement.progress_text }}
+            </div>
+            {% else %}
+            <div class="unlock-date">
+                Unlocked: {{ achievement.unlocked_at.strftime('%Y-%m-%d %H:%M') if achievement.unlocked_at else 'Unknown' }}
+            </div>
+            {% endif %}
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}

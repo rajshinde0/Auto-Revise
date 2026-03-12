@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+
+{% block title %}Home - Quiz App{% endblock %}
+
+{% block content %}
+<div class="hero-section">
+    <h1 class="hero-title">Welcome to Quiz Master</h1>
+    <p class="hero-subtitle">Test your knowledge across multiple subjects</p>
+    {% if not session.get('user_id') %}
+        <div style="margin-top: 2rem;">
+            <a href="/login" class="btn btn-primary" style="margin: 0 10px; padding: 12px 30px; color: white; text-decoration: none; border-radius: 25px; display: inline-block; background: white; color: #667eea; font-weight: bold;">
+                Login to Start
+            </a>
+            <a href="/register" class="btn btn-secondary" style="margin: 0 10px; padding: 12px 30px; color: white; text-decoration: none; border-radius: 25px; display: inline-block; border: 2px solid white;">
+                Create Account
+            </a>
+        </div>
+    {% endif %}
+</div>
+
+{% if session.get('user_id') %}
+<div class="subjects-container">
+    <div class="subject-card" onclick="window.location.href='/quiz/Mathematics'">
+        <div class="subject-icon">🔢</div>
+        <h2>Mathematics</h2>
+        <p>Test your math skills with 20 questions</p>
+        <button class="btn btn-primary">Start Quiz</button>
+    </div>
+
+    <div class="subject-card" onclick="window.location.href='/quiz/Physics'">
+        <div class="subject-icon">⚡</div>
+        <h2>Physics</h2>
+        <p>Challenge yourself with physics concepts</p>
+        <button class="btn btn-primary">Start Quiz</button>
+    </div>
+
+    <div class="subject-card" onclick="window.location.href='/quiz/Chemistry'">
+        <div class="subject-icon">🧪</div>
+        <h2>Chemistry</h2>
+        <p>Explore chemical reactions and formulas</p>
+        <button class="btn btn-primary">Start Quiz</button>
+    </div>
+
+    <div class="subject-card" onclick="window.location.href='/quiz/Biology'">
+        <div class="subject-icon">🧬</div>
+        <h2>Biology</h2>
+        <p>Discover the science of life</p>
+        <button class="btn btn-primary">Start Quiz</button>
+    </div>
+</div>
+
+<div class="quick-links" style="text-align: center; margin-top: 40px;">
+    <a href="/achievements" class="btn btn-secondary" style="margin: 0 10px; padding: 15px 30px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; text-decoration: none; border-radius: 25px; display: inline-block; transition: transform 0.3s;">
+        🏆 View My Achievements
+    </a>
+    <a href="/results" class="btn btn-secondary" style="margin: 0 10px; padding: 15px 30px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; text-decoration: none; border-radius: 25px; display: inline-block; transition: transform 0.3s;">
+        📊 View My Results
+    </a>
+</div>
+{% else %}
+<div class="info-section" style="background: white; border-radius: 15px; padding: 3rem; margin-top: 2rem;">
+    <h2 style="text-align: center; color: #2c3e50; margin-bottom: 2rem;">Why Join Quiz Master?</h2>
+    <div class="info-cards">
+        <div class="info-card">
+            <span class="info-number">📚</span>
+            <h3>Multiple Subjects</h3>
+            <p>Access quizzes in Mathematics, Physics, Chemistry, and Biology</p>
+        </div>
+        <div class="info-card">
+            <span class="info-number">🏆</span>
+            <h3>Achievements</h3>
+            <p>Unlock 25+ achievements across 9 categories</p>
+        </div>
+        <div class="info-card">
+            <span class="info-number">📊</span>
+            <h3>Track Progress</h3>
+            <p>View detailed statistics and performance analytics</p>
+        </div>
+        <div class="info-card">
+            <span class="info-number">⚡</span>
+            <h3>Real-time Feedback</h3>
+            <p>Get instant results and review your answers</p>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}

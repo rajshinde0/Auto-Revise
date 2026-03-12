@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+
+{% block title %}Page Not Found - MCQ Quiz{% endblock %}
+
+{% block content %}
+<div class="container" style="max-width: 600px; margin-top: 100px;">
+    <div class="card" style="text-align: center; padding: 50px;">
+        <div style="font-size: 120px; color: #667eea;">🔍</div>
+        <h1 style="color: #667eea; font-size: 72px; margin: 20px 0;">404</h1>
+        <h2 style="margin-bottom: 20px;">Page Not Found</h2>
+        <p style="color: #666; font-size: 18px; margin-bottom: 30px;">
+            Oops! The page you're looking for doesn't exist.<br>
+            It might have been moved or deleted.
+        </p>
+        <div style="display: flex; gap: 15px; justify-content: center; flex-wrap: wrap;">
+            <a href="{{ url_for('index') }}" class="btn btn-primary" style="padding: 12px 30px; text-decoration: none; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border-radius: 8px; font-weight: 600;">
+                🏠 Go to Home
+            </a>
+            {% if session.get('user_id') %}
+            <a href="{{ url_for('view_results') }}" class="btn btn-secondary" style="padding: 12px 30px; text-decoration: none; background: #6c757d; color: white; border-radius: 8px; font-weight: 600;">
+                📊 View My Results
+            </a>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

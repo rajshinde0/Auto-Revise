@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Debug Session - AutoRevise</title>
+    <style>
+        body { font-family: Arial; max-width: 900px; margin: 20px auto; padding: 20px; background: #f5f5f5; }
+        .box { background: white; padding: 20px; margin: 15px 0; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        h1 { color: #333; }
+        h2 { color: #555; margin-top: 0; border-bottom: 2px solid #4CAF50; padding-bottom: 10px; }
+        button { background: #4CAF50; color: white; border: none; padding: 12px 24px; border-radius: 4px; cursor: pointer; margin: 5px; font-size: 14px; }
+        button:hover { background: #45a049; }
+        button:disabled { background: #ccc; cursor: not-allowed; }
+        pre { background: #f8f8f8; padding: 15px; border-radius: 4px; overflow-x: auto; font-size: 13px; }
+        .success { color: #4CAF50; font-weight: bold; }
+        .error { color: #f44336; font-weight: bold; }
+        .info { color: #2196F3; }
+        input { width: 100%; padding: 10px; margin: 5px 0; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box; }
+        label { font-weight: bold; color: #555; }
+    </style>
+</head>
+<body>
+    <h1>🔍 Session Debug Tool</h1>
+    
+    <div class="box">
+        <h2>Step 1: Login</h2>
+        <label>Email:</label>
+        <input type="email" id="loginEmail" placeholder="your@email.com" value="test@test.com">
+        <label>Password:</label>
+        <input type="password" id="loginPassword" placeholder="password" value="password123">
+        <button onclick="testLogin()">Login</button>
+        <pre id="loginResult">Click Login to test...</pre>
+    </div>
+
+    <div class="box">
+        <h2>Step 2: Check Cookies</h2>
+        <button onclick="checkCookies()">Check Browser Cookies</button>
+        <pre id="cookiesResult">Click to check...</pre>
+    </div>
+
+    <div class="box">
+        <h2>Step 3: Test /session-check Endpoint</h2>
+        <button onclick="testSessionCheck()">Test Session Check</button>
+        <pre id="sessionCheckResult">Click to test...</pre>
+    </div>
+
+    <div class="box">
+        <h2>Step 4: Test /me Endpoint</h2>
+        <button onclick="testMe()">Test /me</button>
+        <pre id="meResult">Click to test...</pre>
+    </div>
+
+    <div class="box">
+        <h2>Network Requests Log</h2>
+        <button onclick="clearLog()">Clear Log</button>
+        <pre id="networkLog" style="max-height: 300px; overflow-y: auto;">Network activity will appear here...</pre>
+    </div>
+
+    <script>
+        const API_URL = 'http://127.0.0.1:5000';
+        let logEntries = [];
+
+        function log(message) {
+            const timestamp = new Date().toLocaleTimeString();
+            logEntries.push(`[${timestamp}] ${message}`);
+            document.getElementById('networkLog').textContent = logEntries.join('\n');
+        }
+
+        function clearLog() {
+            logEntries = [];
+            document.getElementById('networkLog').textContent = 'Network activity will appear here...';
+        }
+
+        async function testLogin() {
+            const email = document.getElementById('loginEmail').value;
+            const password = document.getElementById('loginPassword').value;
+            const result = document.getElementById('loginResult');
+            
+            result.innerHTML = '<span class="info">⏳ Logging in...</span>';
+            log(`POST /login - email: ${email}`);
+            
+            try {
+                const response = await fetch(`${API_URL}/login`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify({ email, password })
+                });
+
+                const data = await response.json();
+                
+                log(`Response: ${response.status} ${response.statusText}`);
+                log(`Set-Cookie header: ${response.headers.get('Set-Cookie') || 'Not visible (HTTPOnly)'}`);
+                
+                if (response.ok) {
+                    result.innerHTML = '<span class="success">✓ Login Successful!</span>\n' + 
+                                     JSON.stringify(data, null, 2);
+                    log('✓ Login successful');
+                    
+                    // Auto check cookies
+                    setTimeout(checkCookies, 500);
+                } else {
+                    result.innerHTML = '<span class="error">✗ Login Failed</span>\n' + 
+                                     JSON.stringify(data, null, 2);
+                    log('✗ Login failed: ' + data.error);
+                }
+            } catch (error) {
+                result.innerHTML = '<span class="error">✗ Error:</span>\n' + error.message;
+                log('✗ Error: ' + error.message);
+            }
+        }
+
+        function checkCookies() {
+            const result = document.getElementById('cookiesResult');
+            const cookies = document.cookie;
+            
+            log('Checking cookies...');
+            
+            if (cookies) {
+                const cookieList = cookies.split(';').map(c => c.trim());
+                result.innerHTML = '<span class="success">✓ Cookies found:</span>\n' + 
+                                 cookieList.join('\n');
+                log(`✓ Found ${cookieList.length} cookie(s)`);
+            } else {
+                result.innerHTML = '<span class="error">✗ No cookies found</span>\n' +
+                                 'This means the session cookie was not set!';
+                log('✗ No cookies found');
+            }
+        }
+
+        async function testSessionCheck() {
+            const result = document.getElementById('sessionCheckResult');
+            result.innerHTML = '<span class="info">⏳ Checking session...</span>';
+            log('GET /session-check');
+            
+            try {
+                const response = await fetch(`${API_URL}/session-check`, {
+                    credentials: 'include'
+                });
+                const data = await response.json();
+                
+                log(`Response: ${response.status}`);
+                
+                if (data.has_session) {
+                    result.innerHTML = '<span class="success">✓ Session exists!</span>\n' + 
+                                     JSON.stringify(data, null, 2);
+                    log(`✓ Session valid - User ID: ${data.user_id}`);
+                } else {
+                    result.innerHTML = '<span class="error">✗ No session found</span>\n' + 
+                                     JSON.stringify(data, null, 2);
+                    log('✗ No session in backend');
+                }
+            } catch (error) {
+                result.innerHTML = '<span class="error">✗ Error:</span>\n' + error.message;
+                log('✗ Error: ' + error.message);
+            }
+        }
+
+        async function testMe() {
+            const result = document.getElementById('meResult');
+            result.innerHTML = '<span class="info">⏳ Testing /me...</span>';
+            log('GET /me');
+            
+            try {
+                const response = await fetch(`${API_URL}/me`, {
+                    credentials: 'include'
+                });
+                const data = await response.json();
+                
+                log(`Response: ${response.status}`);
+                
+                if (response.ok) {
+                    result.innerHTML = '<span class="success">✓ /me Success!</span>\n' + 
+                                     JSON.stringify(data, null, 2);
+                    log('✓ /me endpoint working');
+                } else {
+                    result.innerHTML = '<span class="error">✗ /me Failed (401 Unauthorized)</span>\n' + 
+                                     JSON.stringify(data, null, 2);
+                    log('✗ /me returned 401 - Session not valid');
+                }
+            } catch (error) {
+                result.innerHTML = '<span class="error">✗ Error:</span>\n' + error.message;
+                log('✗ Error: ' + error.message);
+            }
+        }
+
+        // Auto-check cookies on load
+        window.addEventListener('DOMContentLoaded', () => {
+            log('Page loaded - Ready to test');
+            checkCookies();
+        });
+    </script>
+</body>
+</html>

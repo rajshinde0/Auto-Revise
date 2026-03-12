@@ -1,0 +1,355 @@
+{% extends "base.html" %}
+
+{% block title %}Marked Questions - {{ result.subject }}{% endblock %}
+
+{% block content %}
+<style>
+    .marked-questions-container {
+        max-width: 1000px;
+        margin: 0 auto;
+        padding: 20px;
+    }
+    
+    .header-section {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 30px;
+        border-radius: 10px;
+        margin-bottom: 30px;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    }
+    
+    .header-section h1 {
+        margin: 0 0 15px 0;
+        font-size: 28px;
+    }
+    
+    .header-info {
+        display: flex;
+        justify-content: space-between;
+        flex-wrap: wrap;
+        gap: 15px;
+    }
+    
+    .info-item {
+        background: rgba(255,255,255,0.2);
+        padding: 10px 20px;
+        border-radius: 5px;
+    }
+    
+    .back-link {
+        display: inline-block;
+        margin-bottom: 20px;
+        color: #667eea;
+        text-decoration: none;
+        font-weight: bold;
+    }
+    
+    .back-link:hover {
+        color: #764ba2;
+    }
+    
+    .question-card {
+        background: white;
+        border-radius: 10px;
+        padding: 25px;
+        margin-bottom: 25px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        border-left: 5px solid #f39c12;
+    }
+    
+    .question-header {
+        display: flex;
+        align-items: center;
+        margin-bottom: 15px;
+    }
+    
+    .question-number {
+        background: #f39c12;
+        color: white;
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: bold;
+        margin-right: 15px;
+    }
+    
+    .marked-badge {
+        background: #f39c12;
+        color: white;
+        padding: 5px 12px;
+        border-radius: 20px;
+        font-size: 12px;
+        margin-left: auto;
+    }
+    
+    .question-text {
+        font-size: 18px;
+        font-weight: 600;
+        color: #2c3e50;
+        margin-bottom: 20px;
+        line-height: 1.6;
+    }
+    
+    .options-list {
+        list-style: none;
+        padding: 0;
+        margin: 20px 0;
+    }
+    
+    .option-item {
+        padding: 12px 15px;
+        margin: 8px 0;
+        border-radius: 8px;
+        background: #f8f9fa;
+        border: 2px solid #e9ecef;
+        position: relative;
+    }
+    
+    .option-item.correct {
+        background: #d4edda;
+        border-color: #28a745;
+        font-weight: bold;
+    }
+    
+    .option-item.correct::after {
+        content: '✓ Correct Answer';
+        position: absolute;
+        right: 15px;
+        color: #28a745;
+        font-weight: bold;
+        font-size: 14px;
+    }
+    
+    .option-item.user-answer {
+        background: #fff3cd;
+        border-color: #ffc107;
+        font-weight: bold;
+    }
+    
+    .option-item.user-answer::after {
+        content: '👤 Your Answer';
+        position: absolute;
+        right: 15px;
+        color: #856404;
+        font-weight: bold;
+        font-size: 14px;
+    }
+    
+    .option-item.user-answer.correct::after {
+        content: '✓ Your Answer (Correct)';
+        color: #28a745;
+    }
+    
+    .option-item.user-wrong {
+        background: #f8d7da;
+        border-color: #dc3545;
+        font-weight: bold;
+    }
+    
+    .option-item.user-wrong::after {
+        content: '✗ Your Answer (Wrong)';
+        position: absolute;
+        right: 15px;
+        color: #dc3545;
+        font-weight: bold;
+        font-size: 14px;
+    }
+    
+    .option-label {
+        font-weight: 600;
+        color: #495057;
+        margin-right: 10px;
+    }
+    
+    .option-text {
+        color: #212529;
+    }
+    
+    .correct-answer-badge {
+        display: inline-block;
+        background: #28a745;
+        color: white;
+        padding: 3px 10px;
+        border-radius: 12px;
+        font-size: 12px;
+        margin-left: 10px;
+    }
+    
+    .empty-state {
+        text-align: center;
+        padding: 60px 20px;
+        background: white;
+        border-radius: 10px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+    
+    .empty-state h2 {
+        color: #6c757d;
+        margin-bottom: 15px;
+    }
+    
+    .empty-state p {
+        color: #adb5bd;
+        font-size: 16px;
+    }
+    
+    .btn-primary {
+        display: inline-block;
+        background: #667eea;
+        color: white;
+        padding: 12px 30px;
+        border-radius: 5px;
+        text-decoration: none;
+        margin-top: 20px;
+        transition: background 0.3s;
+    }
+    
+    .btn-primary:hover {
+        background: #764ba2;
+    }
+    
+    .answer-legend {
+        background: white;
+        padding: 20px;
+        border-radius: 10px;
+        margin-bottom: 25px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+    
+    .answer-legend h4 {
+        margin-bottom: 15px;
+        color: #2c3e50;
+    }
+    
+    .legend-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 10px;
+    }
+    
+    .legend-item {
+        display: flex;
+        align-items: center;
+        padding: 8px;
+        border-radius: 5px;
+    }
+    
+    .legend-color {
+        width: 30px;
+        height: 30px;
+        border-radius: 5px;
+        margin-right: 10px;
+        border: 2px solid;
+    }
+    
+    .legend-correct {
+        background: #d4edda;
+        border-color: #28a745;
+    }
+    
+    .legend-wrong {
+        background: #f8d7da;
+        border-color: #dc3545;
+    }
+    
+    .legend-unanswered {
+        background: #f8f9fa;
+        border-color: #e9ecef;
+    }
+</style>
+
+<div class="marked-questions-container">
+    <a href="/results" class="back-link">← Back to Results</a>
+    
+    <div class="header-section">
+        <h1>📋 Marked Questions Review</h1>
+        <div class="header-info">
+            <div class="info-item">
+                <strong>Subject:</strong> {{ result.subject }}
+            </div>
+            <div class="info-item">
+                <strong>Score:</strong> {{ result.score }}/{{ result.total_questions }} ({{ "%.1f"|format(result.percentage) }}%)
+            </div>
+            <div class="info-item">
+                <strong>Date:</strong> {{ result.submitted_at.strftime('%Y-%m-%d %H:%M') }}
+            </div>
+            <div class="info-item">
+                <strong>Marked Questions:</strong> {{ marked_questions|length }}
+            </div>
+        </div>
+    </div>
+    
+    {% if marked_questions %}
+        <div class="answer-legend">
+            <h4>📖 Answer Guide</h4>
+            <div class="legend-grid">
+                <div class="legend-item">
+                    <div class="legend-color legend-correct"></div>
+                    <span><strong>Green:</strong> Correct Answer</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color legend-wrong"></div>
+                    <span><strong>Red:</strong> Your Wrong Answer</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color legend-unanswered"></div>
+                    <span><strong>Gray:</strong> Other Options</span>
+                </div>
+            </div>
+        </div>
+        
+        <div class="questions-list">
+            {% for question in marked_questions %}
+            <div class="question-card">
+                <div class="question-header">
+                    <div class="question-number">{{ loop.index }}</div>
+                    <span class="marked-badge">⭐ Marked for Review</span>
+                </div>
+                
+                <div class="question-text">
+                    {{ question.question_text }}
+                </div>
+                
+                {% set user_ans = question.user_answer %}
+                {% set correct_ans = question.correct_option %}
+                
+                <ul class="options-list">
+                    <li class="option-item {% if correct_ans == 'A' %}correct{% endif %} {% if user_ans == question.option_a and correct_ans != 'A' %}user-wrong{% elif user_ans == question.option_a and correct_ans == 'A' %}user-answer{% endif %}">
+                        <span class="option-label">A)</span>
+                        <span class="option-text">{{ question.option_a }}</span>
+                    </li>
+                    <li class="option-item {% if correct_ans == 'B' %}correct{% endif %} {% if user_ans == question.option_b and correct_ans != 'B' %}user-wrong{% elif user_ans == question.option_b and correct_ans == 'B' %}user-answer{% endif %}">
+                        <span class="option-label">B)</span>
+                        <span class="option-text">{{ question.option_b }}</span>
+                    </li>
+                    <li class="option-item {% if correct_ans == 'C' %}correct{% endif %} {% if user_ans == question.option_c and correct_ans != 'C' %}user-wrong{% elif user_ans == question.option_c and correct_ans == 'C' %}user-answer{% endif %}">
+                        <span class="option-label">C)</span>
+                        <span class="option-text">{{ question.option_c }}</span>
+                    </li>
+                    <li class="option-item {% if correct_ans == 'D' %}correct{% endif %} {% if user_ans == question.option_d and correct_ans != 'D' %}user-wrong{% elif user_ans == question.option_d and correct_ans == 'D' %}user-answer{% endif %}">
+                        <span class="option-label">D)</span>
+                        <span class="option-text">{{ question.option_d }}</span>
+                    </li>
+                </ul>
+                
+                {% if not user_ans %}
+                <div style="background: #e7f3ff; padding: 10px; border-radius: 5px; margin-top: 10px; color: #004085;">
+                    ℹ️ You did not answer this question
+                </div>
+                {% endif %}
+            </div>
+            {% endfor %}
+        </div>
+    {% else %}
+        <div class="empty-state">
+            <h2>No Marked Questions</h2>
+            <p>You didn't mark any questions for review in this quiz.</p>
+            <a href="/results" class="btn-primary">Back to Results</a>
+        </div>
+    {% endif %}
+</div>
+{% endblock %}

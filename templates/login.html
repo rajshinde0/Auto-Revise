@@ -1,0 +1,188 @@
+{% extends "base.html" %}
+
+{% block title %}Login - Quiz Master{% endblock %}
+
+{% block content %}
+<div class="auth-container">
+    <div class="auth-card">
+        <h1 class="auth-title">🔐 Login</h1>
+        <p class="auth-subtitle">Welcome back! Please login to continue.</p>
+        
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ category }}">
+                        {{ message }}
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+        
+        <form method="POST" action="{{ url_for('login') }}" class="auth-form">
+            <div class="form-group">
+                <label for="username">Username</label>
+                <input type="text" 
+                       id="username" 
+                       name="username" 
+                       placeholder="Enter your username"
+                       required 
+                       autofocus
+                       autocomplete="username">
+            </div>
+            
+            <div class="form-group">
+                <label for="password">Password</label>
+                <input type="password" 
+                       id="password" 
+                       name="password" 
+                       placeholder="Enter your password"
+                       required
+                       autocomplete="current-password">
+            </div>
+            
+            <button type="submit" class="btn btn-primary btn-block">
+                Login
+            </button>
+        </form>
+        
+        <div class="auth-footer">
+            <p>Don't have an account? <a href="{{ url_for('register') }}">Register here</a></p>
+            <p class="demo-credentials">
+                <strong>Demo Credentials:</strong><br>
+                Admin: admin / admin123<br>
+                Test User: testuser / test123
+            </p>
+        </div>
+    </div>
+</div>
+
+<style>
+.auth-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: calc(100vh - 200px);
+    padding: 2rem;
+}
+
+.auth-card {
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+    padding: 3rem;
+    max-width: 450px;
+    width: 100%;
+}
+
+.auth-title {
+    font-size: 2rem;
+    color: #2c3e50;
+    text-align: center;
+    margin-bottom: 0.5rem;
+}
+
+.auth-subtitle {
+    text-align: center;
+    color: #7f8c8d;
+    margin-bottom: 2rem;
+}
+
+.alert {
+    padding: 1rem;
+    border-radius: 8px;
+    margin-bottom: 1.5rem;
+    font-weight: 500;
+}
+
+.alert-error {
+    background-color: #fee;
+    color: #c33;
+    border: 1px solid #fcc;
+}
+
+.alert-success {
+    background-color: #efe;
+    color: #3c3;
+    border: 1px solid #cfc;
+}
+
+.auth-form {
+    margin-bottom: 1.5rem;
+}
+
+.form-group {
+    margin-bottom: 1.5rem;
+}
+
+.form-group label {
+    display: block;
+    font-weight: 600;
+    color: #2c3e50;
+    margin-bottom: 0.5rem;
+}
+
+.form-group input {
+    width: 100%;
+    padding: 0.875rem;
+    border: 2px solid #e0e0e0;
+    border-radius: 8px;
+    font-size: 1rem;
+    transition: border-color 0.3s;
+    box-sizing: border-box;
+}
+
+.form-group input:focus {
+    outline: none;
+    border-color: #3498db;
+}
+
+.btn {
+    padding: 0.875rem 1.5rem;
+    border: none;
+    border-radius: 8px;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s;
+}
+
+.btn-primary {
+    background-color: #3498db;
+    color: white;
+}
+
+.btn-primary:hover {
+    background-color: #2980b9;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(52, 152, 219, 0.4);
+}
+
+.btn-block {
+    width: 100%;
+}
+
+.auth-footer {
+    text-align: center;
+    color: #7f8c8d;
+}
+
+.auth-footer a {
+    color: #3498db;
+    text-decoration: none;
+    font-weight: 600;
+}
+
+.auth-footer a:hover {
+    text-decoration: underline;
+}
+
+.demo-credentials {
+    margin-top: 1.5rem;
+    padding: 1rem;
+    background-color: #f8f9fa;
+    border-radius: 8px;
+    font-size: 0.875rem;
+    line-height: 1.6;
+}
+</style>
+{% endblock %}

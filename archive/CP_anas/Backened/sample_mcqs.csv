@@ -1,0 +1,7 @@
+question_text,option_a,option_b,option_c,option_d,correct_option,explanation,difficulty,deck_id
+"What is the capital of France?","London","Berlin","Paris","Madrid","C","Paris is the capital and largest city of France.","easy",1
+"Which programming language is known for data science?","Java","Python","C++","Ruby","B","Python has extensive libraries like NumPy, Pandas, and scikit-learn.","medium",1
+"What does SQL stand for?","Structured Query Language","Simple Question Language","System Quality Language","Standard Query Library","A","SQL stands for Structured Query Language.","easy",1
+"In Python, what is the output of: type([])","<class 'dict'>","<class 'list'>","<class 'tuple'>","<class 'set'>","B","[] creates an empty list in Python.","medium",1
+"Which HTTP method is idempotent?","POST","PUT","PATCH","DELETE","B","PUT is idempotent - multiple identical requests have the same effect.","medium",1
+"What does ACID stand for in databases?","Atomicity, Consistency, Isolation, Durability","Accuracy, Completeness, Integrity, Deletion","All, Create, Insert, Delete","Access, Control, Identity, Data","A","ACID properties ensure reliable database transactions.","hard",1

@@ -1,0 +1,463 @@
+{% extends "base.html" %}
+
+{% block title %}Quiz Review - {{ result.subject }}{% endblock %}
+
+{% block content %}
+<style>
+    .review-container {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 20px;
+    }
+    
+    .header-section {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 30px;
+        border-radius: 10px;
+        margin-bottom: 30px;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    }
+    
+    .header-section h1 {
+        margin: 0 0 15px 0;
+        font-size: 28px;
+    }
+    
+    .header-info {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 15px;
+    }
+    
+    .info-card {
+        background: rgba(255,255,255,0.2);
+        padding: 15px;
+        border-radius: 8px;
+        text-align: center;
+    }
+    
+    .info-card h3 {
+        font-size: 14px;
+        margin-bottom: 5px;
+        opacity: 0.9;
+    }
+    
+    .info-card p {
+        font-size: 24px;
+        font-weight: bold;
+        margin: 0;
+    }
+    
+    .back-link {
+        display: inline-block;
+        margin-bottom: 20px;
+        color: #667eea;
+        text-decoration: none;
+        font-weight: bold;
+        font-size: 16px;
+    }
+    
+    .back-link:hover {
+        color: #764ba2;
+    }
+    
+    .answer-legend {
+        background: white;
+        padding: 20px;
+        border-radius: 10px;
+        margin-bottom: 25px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+    
+    .answer-legend h4 {
+        margin-bottom: 15px;
+        color: #2c3e50;
+    }
+    
+    .legend-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 15px;
+    }
+    
+    .legend-item {
+        display: flex;
+        align-items: center;
+        padding: 10px;
+        border-radius: 5px;
+        background: #f8f9fa;
+    }
+    
+    .legend-color {
+        width: 40px;
+        height: 40px;
+        border-radius: 5px;
+        margin-right: 12px;
+        border: 2px solid;
+        flex-shrink: 0;
+    }
+    
+    .legend-correct {
+        background: #d4edda;
+        border-color: #28a745;
+    }
+    
+    .legend-wrong {
+        background: #f8d7da;
+        border-color: #dc3545;
+    }
+    
+    .legend-unanswered {
+        background: #fff3cd;
+        border-color: #ffc107;
+    }
+    
+    .question-card {
+        background: white;
+        border-radius: 10px;
+        padding: 25px;
+        margin-bottom: 25px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        border-left: 5px solid #667eea;
+        position: relative;
+    }
+    
+    .question-card.correct {
+        border-left-color: #28a745;
+    }
+    
+    .question-card.wrong {
+        border-left-color: #dc3545;
+    }
+    
+    .question-card.unanswered {
+        border-left-color: #ffc107;
+    }
+    
+    .question-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 15px;
+    }
+    
+    .question-number-badge {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+    
+    .question-number {
+        background: #667eea;
+        color: white;
+        width: 45px;
+        height: 45px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: bold;
+        font-size: 18px;
+    }
+    
+    .status-badge {
+        padding: 6px 15px;
+        border-radius: 20px;
+        font-size: 13px;
+        font-weight: bold;
+    }
+    
+    .status-badge.correct {
+        background: #d4edda;
+        color: #155724;
+    }
+    
+    .status-badge.wrong {
+        background: #f8d7da;
+        color: #721c24;
+    }
+    
+    .status-badge.unanswered {
+        background: #fff3cd;
+        color: #856404;
+    }
+    
+    .question-text {
+        font-size: 18px;
+        font-weight: 600;
+        color: #2c3e50;
+        margin-bottom: 20px;
+        line-height: 1.6;
+    }
+    
+    .options-list {
+        list-style: none;
+        padding: 0;
+        margin: 20px 0;
+    }
+    
+    .option-item {
+        padding: 15px;
+        margin: 10px 0;
+        border-radius: 8px;
+        background: #f8f9fa;
+        border: 2px solid #e9ecef;
+        position: relative;
+        transition: all 0.3s;
+    }
+    
+    .option-item.correct {
+        background: #d4edda;
+        border-color: #28a745;
+        font-weight: bold;
+    }
+    
+    .option-item.correct::after {
+        content: '✓ Correct Answer';
+        position: absolute;
+        right: 15px;
+        top: 50%;
+        transform: translateY(-50%);
+        color: #28a745;
+        font-weight: bold;
+        font-size: 14px;
+        background: white;
+        padding: 3px 10px;
+        border-radius: 12px;
+    }
+    
+    .option-item.user-wrong {
+        background: #f8d7da;
+        border-color: #dc3545;
+        font-weight: bold;
+    }
+    
+    .option-item.user-wrong::after {
+        content: '✗ Your Answer';
+        position: absolute;
+        right: 15px;
+        top: 50%;
+        transform: translateY(-50%);
+        color: #dc3545;
+        font-weight: bold;
+        font-size: 14px;
+        background: white;
+        padding: 3px 10px;
+        border-radius: 12px;
+    }
+    
+    .option-label {
+        font-weight: 600;
+        color: #495057;
+        margin-right: 10px;
+        font-size: 16px;
+    }
+    
+    .option-text {
+        color: #212529;
+        font-size: 16px;
+    }
+    
+    .empty-state {
+        text-align: center;
+        padding: 60px 20px;
+        background: white;
+        border-radius: 10px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+    
+    .empty-state h2 {
+        color: #6c757d;
+        margin-bottom: 15px;
+    }
+    
+    .empty-state p {
+        color: #adb5bd;
+        font-size: 16px;
+        margin-bottom: 20px;
+    }
+    
+    .btn-primary {
+        display: inline-block;
+        background: #667eea;
+        color: white;
+        padding: 12px 30px;
+        border-radius: 5px;
+        text-decoration: none;
+        transition: background 0.3s;
+    }
+    
+    .btn-primary:hover {
+        background: #764ba2;
+    }
+    
+    .summary-stats {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+        gap: 15px;
+        margin-top: 20px;
+        padding: 20px;
+        background: rgba(255,255,255,0.1);
+        border-radius: 8px;
+    }
+    
+    .stat-item {
+        text-align: center;
+    }
+    
+    .stat-item h4 {
+        font-size: 14px;
+        margin-bottom: 5px;
+        opacity: 0.9;
+    }
+    
+    .stat-item p {
+        font-size: 22px;
+        font-weight: bold;
+        margin: 0;
+    }
+</style>
+
+<div class="review-container">
+    <a href="/results" class="back-link">← Back to Results</a>
+    
+    <div class="header-section">
+        <h1>📝 Quiz Review - {{ result.subject }}</h1>
+        <div class="header-info">
+            <div class="info-card">
+                <h3>Your Score</h3>
+                <p>{{ result.score }}/{{ result.total_questions }}</p>
+            </div>
+            <div class="info-card">
+                <h3>Percentage</h3>
+                <p>{{ "%.1f"|format(result.percentage) }}%</p>
+            </div>
+            <div class="info-card">
+                <h3>Grade</h3>
+                <p>
+                    {% if result.percentage >= 80 %}A
+                    {% elif result.percentage >= 60 %}B
+                    {% elif result.percentage >= 40 %}C
+                    {% else %}F
+                    {% endif %}
+                </p>
+            </div>
+            <div class="info-card">
+                <h3>Date Taken</h3>
+                <p style="font-size: 16px;">{{ result.submitted_at.strftime('%Y-%m-%d') }}</p>
+            </div>
+        </div>
+        
+        {% set correct_count = result.score %}
+        {% set wrong_count = result.total_questions - result.score %}
+        
+        <div class="summary-stats">
+            <div class="stat-item">
+                <h4>✓ Correct</h4>
+                <p style="color: #d4edda;">{{ correct_count }}</p>
+            </div>
+            <div class="stat-item">
+                <h4>✗ Wrong</h4>
+                <p style="color: #f8d7da;">{{ wrong_count }}</p>
+            </div>
+            <div class="stat-item">
+                <h4>Total Questions</h4>
+                <p>{{ result.total_questions }}</p>
+            </div>
+        </div>
+    </div>
+    
+    {% if quiz_questions %}
+        <div class="answer-legend">
+            <h4>📖 How to Read This Review</h4>
+            <div class="legend-grid">
+                <div class="legend-item">
+                    <div class="legend-color legend-correct"></div>
+                    <span><strong>Green:</strong> Correct answer (with ✓ badge)</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color legend-wrong"></div>
+                    <span><strong>Red:</strong> Your wrong answer (with ✗ badge)</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color legend-unanswered"></div>
+                    <span><strong>Yellow:</strong> Question not answered</span>
+                </div>
+            </div>
+        </div>
+        
+        <div class="questions-list">
+            {% for question in quiz_questions %}
+            {% set user_ans = question.user_answer %}
+            {% set correct_text = question.correct_option %}
+            
+            {# Convert correct_option text to letter #}
+            {% set correct_ans = '' %}
+            {% if correct_text == question.option_a %}
+                {% set correct_ans = 'A' %}
+            {% elif correct_text == question.option_b %}
+                {% set correct_ans = 'B' %}
+            {% elif correct_text == question.option_c %}
+                {% set correct_ans = 'C' %}
+            {% elif correct_text == question.option_d %}
+                {% set correct_ans = 'D' %}
+            {% endif %}
+            
+            {# Determine if answer is correct - comparing letters (A, B, C, D) #}
+            {% set is_correct = False %}
+            {% if user_ans and correct_ans %}
+                {% if user_ans|upper == correct_ans|upper %}
+                    {% set is_correct = True %}
+                {% endif %}
+            {% endif %}
+            
+            <div class="question-card {% if not user_ans %}unanswered{% elif is_correct %}correct{% else %}wrong{% endif %}">
+                <div class="question-header">
+                    <div class="question-number-badge">
+                        <div class="question-number">{{ loop.index }}</div>
+                        {% if not user_ans %}
+                        <span class="status-badge unanswered">⚠️ Not Answered</span>
+                        {% elif is_correct %}
+                        <span class="status-badge correct">✓ Correct</span>
+                        {% else %}
+                        <span class="status-badge wrong">✗ Wrong</span>
+                        {% endif %}
+                    </div>
+                </div>
+                
+                <div class="question-text">
+                    {{ question.question_text }}
+                </div>
+                
+                <ul class="options-list">
+                    <li class="option-item {% if correct_ans == 'A' %}correct{% endif %} {% if user_ans and user_ans|upper == 'A' and correct_ans != 'A' %}user-wrong{% endif %}">
+                        <span class="option-label">A)</span>
+                        <span class="option-text">{{ question.option_a }}</span>
+                    </li>
+                    <li class="option-item {% if correct_ans == 'B' %}correct{% endif %} {% if user_ans and user_ans|upper == 'B' and correct_ans != 'B' %}user-wrong{% endif %}">
+                        <span class="option-label">B)</span>
+                        <span class="option-text">{{ question.option_b }}</span>
+                    </li>
+                    <li class="option-item {% if correct_ans == 'C' %}correct{% endif %} {% if user_ans and user_ans|upper == 'C' and correct_ans != 'C' %}user-wrong{% endif %}">
+                        <span class="option-label">C)</span>
+                        <span class="option-text">{{ question.option_c }}</span>
+                    </li>
+                    <li class="option-item {% if correct_ans == 'D' %}correct{% endif %} {% if user_ans and user_ans|upper == 'D' and correct_ans != 'D' %}user-wrong{% endif %}">
+                        <span class="option-label">D)</span>
+                        <span class="option-text">{{ question.option_d }}</span>
+                    </li>
+                </ul>
+            </div>
+            {% endfor %}
+        </div>
+    {% else %}
+        <div class="empty-state">
+            <h2>⚠️ No Review Available</h2>
+            <p>This quiz was taken before the review feature was added.</p>
+            <p>Take a new quiz to use the review feature!</p>
+            <a href="/" class="btn-primary">Take a Quiz</a>
+        </div>
+    {% endif %}
+</div>
+{% endblock %}

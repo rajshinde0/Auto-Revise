@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Quiz Result</title>
+    <style>
+        body { 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            margin: 0;
+            padding: 20px;
+            min-height: 100vh;
+        }
+        .container {
+            max-width: 600px;
+            margin: 40px auto;
+        }
+        .result-box {
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            text-align: center;
+        }
+        h2 { 
+            color: #333;
+            font-size: 32px;
+            margin-bottom: 30px;
+        }
+        .score-display {
+            font-size: 64px;
+            font-weight: bold;
+            color: #667eea;
+            margin: 20px 0;
+        }
+        .percentage {
+            font-size: 24px;
+            color: #666;
+            margin-bottom: 30px;
+        }
+        .subject-badge {
+            display: inline-block;
+            background: #f0f0f0;
+            padding: 10px 20px;
+            border-radius: 25px;
+            font-size: 18px;
+            margin-bottom: 30px;
+        }
+        
+        /* Achievements Section */
+        .achievements-unlocked {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            border-radius: 15px;
+            padding: 25px;
+            margin: 30px 0;
+            color: white;
+            animation: slideIn 0.5s ease-out;
+        }
+        
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        .achievement-title {
+            font-size: 24px;
+            font-weight: bold;
+            margin-bottom: 15px;
+        }
+        
+        .achievement-item {
+            background: rgba(255,255,255,0.2);
+            border-radius: 10px;
+            padding: 15px;
+            margin: 10px 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            animation: bounceIn 0.6s ease-out;
+        }
+        
+        @keyframes bounceIn {
+            0% {
+                opacity: 0;
+                transform: scale(0.3);
+            }
+            50% {
+                transform: scale(1.05);
+            }
+            100% {
+                opacity: 1;
+                transform: scale(1);
+            }
+        }
+        
+        .achievement-icon {
+            font-size: 32px;
+        }
+        
+        .achievement-text {
+            font-size: 18px;
+            font-weight: 500;
+        }
+        
+        .btn {
+            display: inline-block;
+            padding: 15px 30px;
+            margin: 10px;
+            border-radius: 25px;
+            text-decoration: none;
+            font-size: 16px;
+            font-weight: bold;
+            transition: all 0.3s;
+        }
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+        .btn-secondary {
+            background: #f0f0f0;
+            color: #333;
+        }
+        .btn-secondary:hover {
+            background: #e0e0e0;
+        }
+        .btn-achievements {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            color: white;
+        }
+        .btn-achievements:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(240, 147, 251, 0.4);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="result-box">
+            <h2>🎯 Quiz Result</h2>
+
+            {% if result %}
+                <div class="subject-badge">{{ result.subject }}</div>
+                
+                <div class="score-display">{{ result.score }}/{{ result.total }}</div>
+                <div class="percentage">{{ "%.1f"|format(result.percentage) }}%</div>
+                
+                {% if result.percentage >= 80 %}
+                    <p style="font-size: 20px; color: #28a745;">🎉 Excellent Work!</p>
+                {% elif result.percentage >= 60 %}
+                    <p style="font-size: 20px; color: #ffc107;">👍 Good Job!</p>
+                {% else %}
+                    <p style="font-size: 20px; color: #dc3545;">📚 Keep Practicing!</p>
+                {% endif %}
+                
+                <!-- Show Newly Unlocked Achievements (in-page display) -->
+                {% if result.newly_unlocked_achievements and result.newly_unlocked_achievements|length > 0 %}
+                <div class="achievements-unlocked">
+                    <div class="achievement-title">🏆 Achievements Unlocked!</div>
+                    {% for achievement in result.newly_unlocked_achievements %}
+                    <div class="achievement-item" style="animation-delay: {{ loop.index0 * 0.1 }}s;">
+                        <span class="achievement-icon">{{ achievement.icon }}</span>
+                        <div style="flex: 1;">
+                            <div class="achievement-text">{{ achievement.title }}</div>
+                            <div class="achievement-desc">{{ achievement.description }}</div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% endif %}
+                
+                <div style="margin-top: 30px;">
+                    <a href="/achievements" class="btn btn-achievements">🏆 View All Achievements</a>
+                    <a href="/results" class="btn btn-secondary">📊 View History</a>
+                    <a href="/" class="btn btn-primary">🏠 Home</a>
+                </div>
+            {% else %}
+                <p>No result data found.</p>
+                <a href="/" class="btn btn-primary">Back to Home</a>
+            {% endif %}
+        </div>
+    </div>
+    
+    <!-- Toast Notification Container -->
+    <div id="toast-container"></div>
+    
+    <!-- Toast Notifications Script -->
+    <script>
+        // Show toast notifications for achievements
+        {% if result and result.newly_unlocked_achievements and result.newly_unlocked_achievements|length > 0 %}
+        const achievements = {{ result.newly_unlocked_achievements | tojson }};
+        
+        // Wait a moment before showing toasts (after page loads)
+        setTimeout(() => {
+            achievements.forEach((achievement, index) => {
+                setTimeout(() => {
+                    showToast(achievement);
+                }, index * 800); // Stagger by 800ms
+            });
+        }, 500);
+        {% endif %}
+        
+        function showToast(achievement) {
+            const container = document.getElementById('toast-container');
+            
+            const toast = document.createElement('div');
+            toast.className = 'toast';
+            toast.innerHTML = `
+                <div class="toast-icon">${achievement.icon}</div>
+                <div class="toast-content">
+                    <div class="toast-title">Achievement Unlocked!</div>
+                    <div class="toast-message">${achievement.title}</div>
+                    <div class="toast-desc">${achievement.description || ''}</div>
+                </div>
+                <button class="toast-close" onclick="closeToast(this)">×</button>
+            `;
+            
+            container.appendChild(toast);
+            
+            // Trigger animation
+            setTimeout(() => {
+                toast.classList.add('show');
+            }, 10);
+            
+            // Auto-remove after 5 seconds
+            setTimeout(() => {
+                closeToast(toast.querySelector('.toast-close'));
+            }, 5000);
+        }
+        
+        function closeToast(button) {
+            const toast = button.parentElement;
+            toast.classList.remove('show');
+            setTimeout(() => {
+                toast.remove();
+            }, 300);
+        }
+    </script>
+    
+    <style>
+        /* Toast Notification Styles */
+        #toast-container {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 9999;
+            max-width: 400px;
+        }
+        
+        .toast {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 15px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            transform: translateX(450px);
+            transition: transform 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+            border-left: 5px solid #28a745;
+            position: relative;
+        }
+        
+        .toast.show {
+            transform: translateX(0);
+        }
+        
+        .toast-icon {
+            font-size: 48px;
+            line-height: 1;
+            animation: bounce 0.6s ease-in-out;
+        }
+        
+        @keyframes bounce {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.2); }
+        }
+        
+        .toast-content {
+            flex: 1;
+        }
+        
+        .toast-title {
+            font-size: 14px;
+            font-weight: 700;
+            color: #28a745;
+            margin-bottom: 4px;
+        }
+        
+        .toast-message {
+            font-size: 16px;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 4px;
+        }
+        
+        .toast-desc {
+            font-size: 13px;
+            color: #666;
+        }
+        
+        .toast-close {
+            background: none;
+            border: none;
+            font-size: 28px;
+            line-height: 1;
+            color: #999;
+            cursor: pointer;
+            padding: 0;
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            transition: all 0.2s;
+        }
+        
+        .toast-close:hover {
+            background: #f0f0f0;
+            color: #333;
+        }
+        
+        /* Achievement item description */
+        .achievement-desc {
+            font-size: 12px;
+            opacity: 0.9;
+            margin-top: 4px;
+        }
+    </style>
+</body>
+</html>
