@@ -1358,7 +1358,7 @@ def mcq_categories_page():
                 THEN (COALESCE(SUM(correct_answers), 0) * 100.0 / SUM(total_questions)) 
                 ELSE 0 
             END as accuracy
-        FROM quiz_results WHERE user_id = %s
+        FROM results WHERE user_id = %s
     """, (user_id,))
     quiz_stats = cursor.fetchone()
     
@@ -1542,7 +1542,7 @@ def leaderboard():
                END AS avg_score
         FROM users u
         LEFT JOIN user_achievements ua ON u.user_id = ua.user_id
-        LEFT JOIN quiz_results qr ON u.user_id = qr.user_id
+        LEFT JOIN results qr ON u.user_id = qr.user_id
         GROUP BY u.user_id
         ORDER BY u.points DESC
         LIMIT 50
