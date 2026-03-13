@@ -1352,10 +1352,10 @@ def mcq_categories_page():
     cursor.execute("""
         SELECT 
             COALESCE(SUM(total_questions), 0) as total_attempted,
-            COALESCE(SUM(correct_answers), 0) as correct_answers,
+            COALESCE(SUM(score), 0) as correct_answers,
             CASE 
                 WHEN COALESCE(SUM(total_questions), 0) > 0 
-                THEN (COALESCE(SUM(correct_answers), 0) * 100.0 / SUM(total_questions)) 
+                THEN (COALESCE(SUM(score), 0) * 100.0 / SUM(total_questions)) 
                 ELSE 0 
             END as accuracy
         FROM results WHERE user_id = %s
@@ -1552,11 +1552,11 @@ def leaderboard():
     # Get current user's rank and points
     user_id = session.get('user_id')
     cursor.execute("""
-        SELECT COUNT(*) + 1 AS rank
+        SELECT COUNT(*) + 1 AS user_rank
         FROM users
         WHERE COALESCE(points, 0) > (SELECT COALESCE(points, 0) FROM users WHERE user_id = %s)
     """, (user_id,))
-    user_rank = cursor.fetchone()['rank']
+    user_rank = cursor.fetchone()['user_rank']
     
     cursor.execute("SELECT COALESCE(points, 0) as points FROM users WHERE user_id = %s", (user_id,))
     user_points = cursor.fetchone()['points']
