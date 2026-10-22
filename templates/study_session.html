@@ -3,7 +3,6 @@
 {% block title %}Study Session - Quiz Master{% endblock %}
 
 {% block extra_css %}
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 <style>
     body {
         background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
@@ -119,7 +118,7 @@
 
     .flashcard-back {
         transform: rotateY(180deg);
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        background: var(--gradient-primary);
         color: white;
     }
 
@@ -338,7 +337,7 @@
 <!-- Study Header -->
 <header class="study-header">
     <a href="{{ url_for('flashcard_dashboard') }}" class="exit-btn">
-        <i class="fas fa-times"></i>
+        <i class="fas fa-times" aria-hidden="true"></i>
         <span>Exit Session</span>
     </a>
     
@@ -347,7 +346,7 @@
     </div>
     
     <div class="study-timer">
-        <i class="fas fa-clock"></i>
+        <i class="fas fa-clock" aria-hidden="true"></i>
         <span id="timer">00:00</span>
     </div>
 </header>
@@ -377,7 +376,7 @@
             <div class="flashcard-side flashcard-front">
                 <div class="card-header">
                     <span class="card-label">
-                        <i class="fas fa-question-circle"></i>
+                        <i class="fas fa-question-circle" aria-hidden="true"></i>
                         Question
                     </span>
                 </div>
@@ -385,7 +384,7 @@
                     <p id="questionText">Loading...</p>
                 </div>
                 <div class="flip-hint">
-                    <i class="fas fa-hand-pointer"></i>
+                    <i class="fas fa-hand-pointer" aria-hidden="true"></i>
                     <span>Click to flip and see the answer</span>
                 </div>
             </div>
@@ -394,7 +393,7 @@
             <div class="flashcard-side flashcard-back">
                 <div class="card-header">
                     <span class="card-label">
-                        <i class="fas fa-lightbulb"></i>
+                        <i class="fas fa-lightbulb" aria-hidden="true"></i>
                         Answer
                     </span>
                 </div>
@@ -402,7 +401,7 @@
                     <p id="answerText">Loading...</p>
                 </div>
                 <div class="flip-hint">
-                    <i class="fas fa-star"></i>
+                    <i class="fas fa-star" aria-hidden="true"></i>
                     <span>Rate how well you knew this</span>
                 </div>
             </div>
@@ -412,25 +411,25 @@
     <!-- Rating Buttons -->
     <div class="rating-buttons" id="ratingButtons">
         <button class="rating-btn forgot-btn" onclick="rateCard('forgot')" disabled>
-            <div class="btn-icon"><i class="fas fa-times-circle"></i></div>
+            <div class="btn-icon"><i class="fas fa-times-circle" aria-hidden="true"></i></div>
             <span class="btn-label">Forgot</span>
             <span class="btn-subtitle">< 1 min</span>
         </button>
 
         <button class="rating-btn hard-btn" onclick="rateCard('hard')" disabled>
-            <div class="btn-icon"><i class="fas fa-frown"></i></div>
+            <div class="btn-icon"><i class="fas fa-frown" aria-hidden="true"></i></div>
             <span class="btn-label">Hard</span>
             <span class="btn-subtitle">< 10 min</span>
         </button>
 
         <button class="rating-btn good-btn" onclick="rateCard('good')" disabled>
-            <div class="btn-icon"><i class="fas fa-smile"></i></div>
+            <div class="btn-icon"><i class="fas fa-smile" aria-hidden="true"></i></div>
             <span class="btn-label">Good</span>
             <span class="btn-subtitle">1 day</span>
         </button>
 
         <button class="rating-btn easy-btn" onclick="rateCard('easy')" disabled>
-            <div class="btn-icon"><i class="fas fa-grin-stars"></i></div>
+            <div class="btn-icon"><i class="fas fa-grin-stars" aria-hidden="true"></i></div>
             <span class="btn-label">Easy</span>
             <span class="btn-subtitle">4 days</span>
         </button>
@@ -439,28 +438,28 @@
     <!-- Study Stats -->
     <div class="study-stats">
         <div class="stat-item">
-            <i class="fas fa-check-circle"></i>
+            <i class="fas fa-check-circle" aria-hidden="true"></i>
             <span id="cardsCompleted">0</span>
             <small>Completed</small>
         </div>
         <div class="stat-item">
-            <i class="fas fa-fire"></i>
+            <i class="fas fa-fire" aria-hidden="true"></i>
             <span id="streak">{{ stats.current_streak if stats else 0 }}</span>
             <small>Day Streak</small>
         </div>
         <div class="stat-item">
-            <i class="fas fa-star"></i>
+            <i class="fas fa-star" aria-hidden="true"></i>
             <span id="pointsEarned">0</span>
             <small>Points</small>
         </div>
     </div>
     {% else %}
     <div class="no-cards">
-        <i class="fas fa-check-circle"></i>
+        <i class="fas fa-check-circle" aria-hidden="true"></i>
         <h2>All Caught Up!</h2>
         <p>No cards are due for review right now. Great job!</p>
         <a href="{{ url_for('flashcard_dashboard') }}" class="completion-btn">
-            <i class="fas fa-home"></i> Back to Dashboard
+            <i class="fas fa-home" aria-hidden="true"></i> Back to Dashboard
         </a>
     </div>
     {% endif %}
@@ -468,15 +467,15 @@
 
 <!-- Completion Screen -->
 <div class="completion-screen" id="completionScreen">
-    <i class="fas fa-trophy"></i>
+    <i class="fas fa-trophy" aria-hidden="true"></i>
     <h2>Session Complete!</h2>
     <p>You reviewed <span id="finalCount">0</span> cards and earned <span id="finalPoints">0</span> points!</p>
     <div>
         <a href="{{ url_for('flashcard_dashboard') }}" class="completion-btn">
-            <i class="fas fa-home"></i> Dashboard
+            <i class="fas fa-home" aria-hidden="true"></i> Dashboard
         </a>
         <button onclick="location.reload()" class="completion-btn">
-            <i class="fas fa-redo"></i> Study More
+            <i class="fas fa-redo" aria-hidden="true"></i> Study More
         </button>
     </div>
 </div>
@@ -554,7 +553,8 @@ async function rateCard(rating) {
         const response = await fetch('/submit-review', {
             method: 'POST',
             headers: {
-                'Content-Type': 'application/json'
+                'Content-Type': 'application/json',
+                'X-CSRFToken': window.CSRF_TOKEN
             },
             body: JSON.stringify({
                 card_id: card.card_id,

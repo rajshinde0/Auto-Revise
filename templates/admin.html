@@ -7,10 +7,10 @@
     <h1>Admin Panel - Question Management</h1>
 
     <div class="admin-tabs">
-        <button class="tab-btn active" onclick="showTab('add')">➕ Add Question</button>
-        <button class="tab-btn" onclick="showTab('view')">📋 View Questions</button>
-        <button class="tab-btn" onclick="showTab('update')">✏️ Update Question</button>
-        <button class="tab-btn" onclick="showTab('delete')">🗑️ Delete Question</button>
+        <button type="button" class="tab-btn active" data-tab="add" onclick="showTab('add', event)">➕ Add Question</button>
+        <button type="button" class="tab-btn" data-tab="view" onclick="showTab('view', event)">📋 View Questions</button>
+        <button type="button" class="tab-btn" data-tab="update" onclick="showTab('update', event)">✏️ Update Question</button>
+        <button type="button" class="tab-btn" data-tab="delete" onclick="showTab('delete', event)">🗑️ Delete Question</button>
     </div>
 
     <!-- Add Question Tab -->
@@ -18,37 +18,37 @@
         <h2>Add New Question</h2>
         <form id="add-form" class="admin-form">
             <div class="form-group">
-                <label>Question Text</label>
-                <textarea name="question_text" required rows="3"></textarea>
+                <label for="add-question-text">Question Text</label>
+                <textarea id="add-question-text" name="question_text" required rows="3"></textarea>
             </div>
             <div class="form-row">
                 <div class="form-group">
-                    <label>Option A</label>
-                    <input type="text" name="option_a" required>
+                    <label for="add-option-a">Option A</label>
+                    <input id="add-option-a" type="text" name="option_a" required>
                 </div>
                 <div class="form-group">
-                    <label>Option B</label>
-                    <input type="text" name="option_b" required>
-                </div>
-            </div>
-            <div class="form-row">
-                <div class="form-group">
-                    <label>Option C</label>
-                    <input type="text" name="option_c" required>
-                </div>
-                <div class="form-group">
-                    <label>Option D</label>
-                    <input type="text" name="option_d" required>
+                    <label for="add-option-b">Option B</label>
+                    <input id="add-option-b" type="text" name="option_b" required>
                 </div>
             </div>
             <div class="form-row">
                 <div class="form-group">
-                    <label>Correct Option (exact text)</label>
-                    <input type="text" name="correct_option" required>
+                    <label for="add-option-c">Option C</label>
+                    <input id="add-option-c" type="text" name="option_c" required>
                 </div>
                 <div class="form-group">
-                    <label>Subject</label>
-                    <select name="subject" required>
+                    <label for="add-option-d">Option D</label>
+                    <input id="add-option-d" type="text" name="option_d" required>
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="add-correct-option">Correct Option (exact text)</label>
+                    <input id="add-correct-option" type="text" name="correct_option" required>
+                </div>
+                <div class="form-group">
+                    <label for="add-subject">Subject</label>
+                    <select id="add-subject" name="subject" required>
                         <option value="Mathematics">Mathematics</option>
                         <option value="Physics">Physics</option>
                         <option value="Chemistry">Chemistry</option>
@@ -82,42 +82,42 @@
     <div id="update-tab" class="tab-content">
         <h2>Update Question</h2>
         <div class="form-group">
-            <label>Select Question ID</label>
+            <label for="update-qid">Select Question ID</label>
             <input type="number" id="update-qid" placeholder="Enter Question ID" onchange="loadQuestionData(this.value)">
         </div>
         <form id="update-form" class="admin-form">
             <input type="hidden" name="q_id" id="update-q-id">
             <div class="form-group">
-                <label>Question Text</label>
+                <label for="update-question">Question Text</label>
                 <textarea name="question_text" id="update-question" required rows="3"></textarea>
             </div>
             <div class="form-row">
                 <div class="form-group">
-                    <label>Option A</label>
+                    <label for="update-option-a">Option A</label>
                     <input type="text" name="option_a" id="update-option-a" required>
                 </div>
                 <div class="form-group">
-                    <label>Option B</label>
+                    <label for="update-option-b">Option B</label>
                     <input type="text" name="option_b" id="update-option-b" required>
                 </div>
             </div>
             <div class="form-row">
                 <div class="form-group">
-                    <label>Option C</label>
+                    <label for="update-option-c">Option C</label>
                     <input type="text" name="option_c" id="update-option-c" required>
                 </div>
                 <div class="form-group">
-                    <label>Option D</label>
+                    <label for="update-option-d">Option D</label>
                     <input type="text" name="option_d" id="update-option-d" required>
                 </div>
             </div>
             <div class="form-row">
                 <div class="form-group">
-                    <label>Correct Option</label>
+                    <label for="update-correct">Correct Option</label>
                     <input type="text" name="correct_option" id="update-correct" required>
                 </div>
                 <div class="form-group">
-                    <label>Subject</label>
+                    <label for="update-subject">Subject</label>
                     <select name="subject" id="update-subject" required>
                         <option value="Mathematics">Mathematics</option>
                         <option value="Physics">Physics</option>
@@ -134,7 +134,7 @@
     <div id="delete-tab" class="tab-content">
         <h2>Delete Question</h2>
         <div class="form-group">
-            <label>Enter Question ID to Delete</label>
+            <label for="delete-qid">Enter Question ID to Delete</label>
             <input type="number" id="delete-qid" placeholder="Enter Question ID">
         </div>
         <div id="delete-preview" class="delete-preview">

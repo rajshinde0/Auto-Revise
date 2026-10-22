@@ -1,14 +1,46 @@
+/**
+ * Escape text before it goes into innerHTML.
+ *
+ * Question text and options are admin-authored free text. Interpolating them
+ * into a template literal unescaped makes any saved markup execute when
+ * another admin views the list - a stored XSS.
+ */
+function escapeHtml(value) {
+    if (value === null || value === undefined) return '';
+    return String(value)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
+/**
+ * Read an error message out of a JSON error body, whatever shape it uses.
+ */
+function errorMessage(result, fallback) {
+    return (result && (result.error || result.message)) || fallback;
+}
+
 // Tab switching
-function showTab(tabName) {
+// `evt` is passed in from the onclick handler; this used to rely on the
+// non-standard implicit `window.event` global, which breaks if the function
+// is ever called any other way.
+function showTab(tabName, evt) {
     document.querySelectorAll('.tab-content').forEach(tab => {
         tab.classList.remove('active');
     });
     document.querySelectorAll('.tab-btn').forEach(btn => {
         btn.classList.remove('active');
     });
-    
+
     document.getElementById(`${tabName}-tab`).classList.add('active');
-    event.target.classList.add('active');
+
+    const trigger = (evt && evt.currentTarget) ||
+                    document.querySelector(`.tab-btn[data-tab="${tabName}"]`);
+    if (trigger) {
+        trigger.classList.add('active');
+    }
 }
 
 // Add Question
@@ -20,7 +52,7 @@ document.getElementById('add-form')?.addEventListener('submit', async function(e
     try {
         const response = await fetch('/api/questions', {
             method: 'POST',
-            headers: {'Content-Type': 'application/json'},
+            headers: {'Content-Type': 'application/json', 'X-CSRFToken': window.CSRF_TOKEN},
             body: JSON.stringify(data)
         });
         
@@ -29,7 +61,7 @@ document.getElementById('add-form')?.addEventListener('submit', async function(e
             alert('Question added successfully!');
             this.reset();
         } else {
-            alert('Error: ' + result.message);
+            alert('Error: ' + errorMessage(result, 'Could not add the question.'));
         }
     } catch (error) {
         alert('Failed to add question: ' + error.message);
@@ -39,26 +71,41 @@ document.getElementById('add-form')?.addEventListener('submit', async function(e
 // Load all questions
 async function loadQuestions() {
     const subject = document.getElementById('subject-filter').value;
-    const url = subject ? `/api/questions?subject=${subject}` : '/api/questions';
-    
+    const url = subject
+        ? `/api/questions?subject=${encodeURIComponent(subject)}`
+        : '/api/questions';
+
+    const listDiv = document.getElementById('questions-list');
+
     try {
         const response = await fetch(url);
+
+        // Check the status before assuming an array came back: an error body
+        // is an object, and questions.map would then throw a TypeError that
+        // the catch below would report as a misleading generic failure.
+        if (!response.ok) {
+            const result = await response.json().catch(() => null);
+            listDiv.innerHTML = '<p class="empty-state"></p>';
+            listDiv.firstChild.textContent =
+                errorMessage(result, `Could not load questions (${response.status}).`);
+            return;
+        }
+
         const questions = await response.json();
-        
-        const listDiv = document.getElementById('questions-list');
-        if (questions.length === 0) {
+
+        if (!Array.isArray(questions) || questions.length === 0) {
             listDiv.innerHTML = '<p class="empty-state">No questions found</p>';
             return;
         }
-        
+
         listDiv.innerHTML = questions.map(q => `
             <div class="question-item">
-                <strong>ID: ${q.q_id}</strong> | 
-                <span class="subject-badge">${q.subject}</span>
-                <p><strong>Q:</strong> ${q.question_text}</p>
-                <p><strong>A:</strong> ${q.option_a} | <strong>B:</strong> ${q.option_b}</p>
-                <p><strong>C:</strong> ${q.option_c} | <strong>D:</strong> ${q.option_d}</p>
-                <p><strong>Correct:</strong> ${q.correct_option}</p>
+                <strong>ID: ${escapeHtml(q.q_id)}</strong> |
+                <span class="subject-badge">${escapeHtml(q.subject)}</span>
+                <p><strong>Q:</strong> ${escapeHtml(q.question_text)}</p>
+                <p><strong>A:</strong> ${escapeHtml(q.option_a)} | <strong>B:</strong> ${escapeHtml(q.option_b)}</p>
+                <p><strong>C:</strong> ${escapeHtml(q.option_c)} | <strong>D:</strong> ${escapeHtml(q.option_d)}</p>
+                <p><strong>Correct:</strong> ${escapeHtml(q.correct_option)}</p>
             </div>
         `).join('');
     } catch (error) {
@@ -112,7 +159,7 @@ document.getElementById('update-form')?.addEventListener('submit', async functio
     try {
         const response = await fetch(`/api/questions/${qid}`, {
             method: 'PUT',
-            headers: {'Content-Type': 'application/json'},
+            headers: {'Content-Type': 'application/json', 'X-CSRFToken': window.CSRF_TOKEN},
             body: JSON.stringify(data)
         });
         
@@ -120,7 +167,7 @@ document.getElementById('update-form')?.addEventListener('submit', async functio
         if (response.ok) {
             alert('Question updated successfully!');
         } else {
-            alert('Error: ' + result.message);
+            alert('Error: ' + errorMessage(result, 'Could not update the question.'));
         }
     } catch (error) {
         alert('Failed to update question: ' + error.message);
@@ -142,10 +189,10 @@ document.getElementById('delete-qid')?.addEventListener('change', async function
         if (response.ok) {
             document.getElementById('delete-preview').innerHTML = `
                 <div class="question-item">
-                    <strong>ID: ${question.q_id}</strong> | 
-                    <span class="subject-badge">${question.subject}</span>
-                    <p><strong>Q:</strong> ${question.question_text}</p>
-                    <p><strong>Correct Answer:</strong> ${question.correct_option}</p>
+                    <strong>ID: ${escapeHtml(question.q_id)}</strong> |
+                    <span class="subject-badge">${escapeHtml(question.subject)}</span>
+                    <p><strong>Q:</strong> ${escapeHtml(question.question_text)}</p>
+                    <p><strong>Correct Answer:</strong> ${escapeHtml(question.correct_option)}</p>
                 </div>
             `;
         } else {
@@ -170,7 +217,8 @@ async function deleteQuestion() {
     
     try {
         const response = await fetch(`/api/questions/${qid}`, {
-            method: 'DELETE'
+            method: 'DELETE',
+            headers: {'X-CSRFToken': window.CSRF_TOKEN}
         });
         
         const result = await response.json();
@@ -179,7 +227,7 @@ async function deleteQuestion() {
             document.getElementById('delete-qid').value = '';
             document.getElementById('delete-preview').innerHTML = '';
         } else {
-            alert('Error: ' + result.message);
+            alert('Error: ' + errorMessage(result, 'Could not delete the question.'));
         }
     } catch (error) {
         alert('Failed to delete question: ' + error.message);

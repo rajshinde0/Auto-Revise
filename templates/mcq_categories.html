@@ -3,7 +3,6 @@
 {% block title %}MCQ Categories - Quiz Master{% endblock %}
 
 {% block extra_css %}
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 <style>
     .categories-container {
         max-width: 1200px;
@@ -163,7 +162,7 @@
     .stat-value {
         font-size: 2.5rem;
         font-weight: bold;
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        background: var(--gradient-primary);
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
         background-clip: text;
@@ -216,7 +215,7 @@
 <div class="categories-container">
     <!-- Page Header -->
     <div class="page-header">
-        <h1><i class="fas fa-graduation-cap"></i> MCQ Practice</h1>
+        <h1><i class="fas fa-graduation-cap" aria-hidden="true"></i> MCQ Practice</h1>
         <p>Choose a category and test your knowledge with multiple choice questions</p>
     </div>
 
@@ -250,27 +249,27 @@
             <a href="{{ url_for('quiz', subject=category.category_name|lower) }}" class="category-card {{ cat_class if cat_class in ['physics', 'chemistry', 'biology', 'mathematics', 'history', 'geography', 'computer', 'general', 'english', 'science'] else 'default' }}">
                 <div class="category-icon">
                     {% if cat_class == 'physics' %}
-                        <i class="fas fa-atom"></i>
+                        <i class="fas fa-atom" aria-hidden="true"></i>
                     {% elif cat_class == 'chemistry' %}
-                        <i class="fas fa-flask"></i>
+                        <i class="fas fa-flask" aria-hidden="true"></i>
                     {% elif cat_class == 'biology' %}
-                        <i class="fas fa-dna"></i>
+                        <i class="fas fa-dna" aria-hidden="true"></i>
                     {% elif cat_class == 'mathematics' or cat_class == 'maths' %}
-                        <i class="fas fa-calculator"></i>
+                        <i class="fas fa-calculator" aria-hidden="true"></i>
                     {% elif cat_class == 'history' %}
-                        <i class="fas fa-landmark"></i>
+                        <i class="fas fa-landmark" aria-hidden="true"></i>
                     {% elif cat_class == 'geography' %}
-                        <i class="fas fa-globe-americas"></i>
+                        <i class="fas fa-globe-americas" aria-hidden="true"></i>
                     {% elif cat_class == 'computer' or cat_class == 'computerscience' %}
-                        <i class="fas fa-laptop-code"></i>
+                        <i class="fas fa-laptop-code" aria-hidden="true"></i>
                     {% elif cat_class == 'general' or cat_class == 'generalknowledge' %}
-                        <i class="fas fa-brain"></i>
+                        <i class="fas fa-brain" aria-hidden="true"></i>
                     {% elif cat_class == 'english' %}
-                        <i class="fas fa-book"></i>
+                        <i class="fas fa-book" aria-hidden="true"></i>
                     {% elif cat_class == 'science' %}
-                        <i class="fas fa-microscope"></i>
+                        <i class="fas fa-microscope" aria-hidden="true"></i>
                     {% else %}
-                        <i class="fas fa-question-circle"></i>
+                        <i class="fas fa-question-circle" aria-hidden="true"></i>
                     {% endif %}
                 </div>
                 <div class="category-name">{{ category.category_name }}</div>
@@ -283,7 +282,7 @@
                 </div>
                 <div class="category-stats">
                     <span class="category-stat">
-                        <i class="fas fa-question-circle"></i>
+                        <i class="fas fa-question-circle" aria-hidden="true"></i>
                         {{ category.question_count or 0 }} questions
                     </span>
                     <button class="start-btn">Start Quiz</button>
@@ -294,13 +293,13 @@
             <!-- Fallback to original subjects -->
             <a href="{{ url_for('quiz', subject='physics') }}" class="category-card physics">
                 <div class="category-icon">
-                    <i class="fas fa-atom"></i>
+                    <i class="fas fa-atom" aria-hidden="true"></i>
                 </div>
                 <div class="category-name">Physics</div>
                 <div class="category-description">Master mechanics, thermodynamics, electromagnetism and more</div>
                 <div class="category-stats">
                     <span class="category-stat">
-                        <i class="fas fa-question-circle"></i>
+                        <i class="fas fa-question-circle" aria-hidden="true"></i>
                         Multiple questions
                     </span>
                     <button class="start-btn">Start Quiz</button>
@@ -309,13 +308,13 @@
             
             <a href="{{ url_for('quiz', subject='chemistry') }}" class="category-card chemistry">
                 <div class="category-icon">
-                    <i class="fas fa-flask"></i>
+                    <i class="fas fa-flask" aria-hidden="true"></i>
                 </div>
                 <div class="category-name">Chemistry</div>
                 <div class="category-description">Explore chemical reactions, periodic table and organic chemistry</div>
                 <div class="category-stats">
                     <span class="category-stat">
-                        <i class="fas fa-question-circle"></i>
+                        <i class="fas fa-question-circle" aria-hidden="true"></i>
                         Multiple questions
                     </span>
                     <button class="start-btn">Start Quiz</button>
@@ -324,13 +323,13 @@
             
             <a href="{{ url_for('quiz', subject='biology') }}" class="category-card biology">
                 <div class="category-icon">
-                    <i class="fas fa-dna"></i>
+                    <i class="fas fa-dna" aria-hidden="true"></i>
                 </div>
                 <div class="category-name">Biology</div>
                 <div class="category-description">Learn about cells, genetics, evolution and life sciences</div>
                 <div class="category-stats">
                     <span class="category-stat">
-                        <i class="fas fa-question-circle"></i>
+                        <i class="fas fa-question-circle" aria-hidden="true"></i>
                         Multiple questions
                     </span>
                     <button class="start-btn">Start Quiz</button>
@@ -339,13 +338,13 @@
             
             <a href="{{ url_for('quiz', subject='maths') }}" class="category-card mathematics">
                 <div class="category-icon">
-                    <i class="fas fa-calculator"></i>
+                    <i class="fas fa-calculator" aria-hidden="true"></i>
                 </div>
                 <div class="category-name">Mathematics</div>
                 <div class="category-description">Practice algebra, calculus, geometry and statistics</div>
                 <div class="category-stats">
                     <span class="category-stat">
-                        <i class="fas fa-question-circle"></i>
+                        <i class="fas fa-question-circle" aria-hidden="true"></i>
                         Multiple questions
                     </span>
                     <button class="start-btn">Start Quiz</button>

@@ -3,7 +3,6 @@
 {% block title %}{{ deck.deck_name }} - Quiz Master{% endblock %}
 
 {% block extra_css %}
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 <style>
     .deck-view-container {
         max-width: 1000px;
@@ -104,7 +103,7 @@
         gap: 1rem;
         width: 100%;
         padding: 1.5rem;
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        background: var(--gradient-primary);
         color: white;
         border: none;
         border-radius: 15px;
@@ -141,7 +140,7 @@
     }
 
     .add-card-btn {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        background: var(--gradient-primary);
         color: white;
         border: none;
         padding: 0.75rem 1.5rem;
@@ -397,7 +396,7 @@
     }
 
     .btn-primary {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        background: var(--gradient-primary);
         color: white;
         border: none;
         padding: 0.75rem 1.5rem;
@@ -456,30 +455,30 @@
             <h1 class="deck-title">{{ deck.deck_name }}</h1>
             <div class="deck-actions">
                 <button class="deck-action" onclick="editDeck()">
-                    <i class="fas fa-edit"></i> Edit
+                    <i class="fas fa-edit" aria-hidden="true"></i> Edit
                 </button>
                 <button class="deck-action danger" onclick="deleteDeck()">
-                    <i class="fas fa-trash"></i> Delete
+                    <i class="fas fa-trash" aria-hidden="true"></i> Delete
                 </button>
             </div>
         </div>
         <p class="deck-description">{{ deck.description or 'No description' }}</p>
         <div class="deck-stats-bar">
             <span class="deck-stat">
-                <i class="fas fa-clone"></i>
+                <i class="fas fa-clone" aria-hidden="true"></i>
                 {{ deck.card_count or 0 }} cards
             </span>
             {% set due_count = cards | selectattr('status', 'equalto', 'due') | list | length %}
             {% set new_count = cards | selectattr('status', 'equalto', 'new') | list | length %}
             {% if due_count > 0 %}
             <span class="deck-stat due">
-                <i class="fas fa-clock"></i>
+                <i class="fas fa-clock" aria-hidden="true"></i>
                 {{ due_count }} due
             </span>
             {% endif %}
             {% if new_count > 0 %}
             <span class="deck-stat">
-                <i class="fas fa-sparkles"></i>
+                <i class="fas fa-sparkles" aria-hidden="true"></i>
                 {{ new_count }} new
             </span>
             {% endif %}
@@ -489,7 +488,7 @@
     <!-- Study Section -->
     <div class="study-section">
         <a href="{{ url_for('study_session_page') }}?deck_id={{ deck.deck_id }}" class="study-button">
-            <i class="fas fa-play-circle"></i>
+            <i class="fas fa-play-circle" aria-hidden="true"></i>
             Start Study Session
         </a>
     </div>
@@ -497,9 +496,9 @@
     <!-- Cards Section -->
     <div class="cards-section">
         <div class="cards-header">
-            <h2><i class="fas fa-layer-group"></i> Cards ({{ cards | length }})</h2>
+            <h2><i class="fas fa-layer-group" aria-hidden="true"></i> Cards ({{ cards | length }})</h2>
             <button class="add-card-btn" onclick="openAddCardModal()">
-                <i class="fas fa-plus"></i>
+                <i class="fas fa-plus" aria-hidden="true"></i>
                 Add Card
             </button>
         </div>
@@ -522,10 +521,10 @@
                         <span class="status-badge {{ card.status }}">{{ card.status }}</span>
                         <div class="card-actions">
                             <button class="card-action-btn" onclick="editCard({{ card.card_id }}, '{{ card.front_content | e }}', '{{ card.back_content | e }}')" title="Edit">
-                                <i class="fas fa-edit"></i>
+                                <i class="fas fa-edit" aria-hidden="true"></i>
                             </button>
                             <button class="card-action-btn delete" onclick="deleteCard({{ card.card_id }})" title="Delete">
-                                <i class="fas fa-trash"></i>
+                                <i class="fas fa-trash" aria-hidden="true"></i>
                             </button>
                         </div>
                     </div>
@@ -533,7 +532,7 @@
                 {% endfor %}
             {% else %}
                 <div class="empty-state">
-                    <i class="fas fa-clone"></i>
+                    <i class="fas fa-clone" aria-hidden="true"></i>
                     <h3>No cards yet</h3>
                     <p>Add your first flashcard to start learning!</p>
                 </div>
@@ -542,10 +541,10 @@
 
         <!-- Bulk Upload Section -->
         <div class="bulk-upload-section">
-            <h3><i class="fas fa-upload"></i> Bulk Upload</h3>
+            <h3><i class="fas fa-upload" aria-hidden="true"></i> Bulk Upload</h3>
             <p style="color: #7f8c8d; margin-bottom: 1rem;">Upload multiple cards at once using CSV format</p>
             <div class="upload-area" onclick="openBulkUploadModal()">
-                <i class="fas fa-file-csv"></i>
+                <i class="fas fa-file-csv" aria-hidden="true"></i>
                 <p>Click to upload CSV file</p>
                 <small style="color: #7f8c8d;">Format: Question, Answer (one per line)</small>
             </div>
@@ -560,7 +559,7 @@
         <div class="modal-header">
             <h2 id="cardModalTitle">Add New Card</h2>
             <button class="modal-close" onclick="closeAddCardModal()">
-                <i class="fas fa-times"></i>
+                <i class="fas fa-times" aria-hidden="true"></i>
             </button>
         </div>
         <div class="modal-body">
@@ -568,20 +567,20 @@
                 <input type="hidden" id="editCardId" value="">
                 <div class="form-group">
                     <label for="frontContent">
-                        <i class="fas fa-question-circle"></i> Question (Front)
+                        <i class="fas fa-question-circle" aria-hidden="true"></i> Question (Front)
                     </label>
                     <textarea id="frontContent" required placeholder="Enter the question or term..."></textarea>
                 </div>
                 <div class="form-group">
                     <label for="backContent">
-                        <i class="fas fa-lightbulb"></i> Answer (Back)
+                        <i class="fas fa-lightbulb" aria-hidden="true"></i> Answer (Back)
                     </label>
                     <textarea id="backContent" required placeholder="Enter the answer or definition..."></textarea>
                 </div>
                 <div class="form-actions">
                     <button type="button" class="btn-secondary" onclick="closeAddCardModal()">Cancel</button>
                     <button type="submit" class="btn-primary">
-                        <i class="fas fa-save"></i> Save Card
+                        <i class="fas fa-save" aria-hidden="true"></i> Save Card
                     </button>
                 </div>
             </form>
@@ -596,7 +595,7 @@
         <div class="modal-header">
             <h2>Bulk Upload Cards</h2>
             <button class="modal-close" onclick="closeBulkUploadModal()">
-                <i class="fas fa-times"></i>
+                <i class="fas fa-times" aria-hidden="true"></i>
             </button>
         </div>
         <div class="modal-body">
@@ -609,7 +608,7 @@ Question 3,Answer 3"></textarea>
             <div class="form-actions">
                 <button type="button" class="btn-secondary" onclick="closeBulkUploadModal()">Cancel</button>
                 <button type="button" class="btn-primary" onclick="uploadBulkCards()">
-                    <i class="fas fa-upload"></i> Upload Cards
+                    <i class="fas fa-upload" aria-hidden="true"></i> Upload Cards
                 </button>
             </div>
         </div>
@@ -675,7 +674,10 @@ async function deleteCard(cardId) {
     if (!confirm('Are you sure you want to delete this card?')) return;
     
     try {
-        const response = await fetch(`/cards/${cardId}`, { method: 'DELETE' });
+        const response = await fetch(`/cards/${cardId}`, {
+            method: 'DELETE',
+            headers: { 'X-CSRFToken': window.CSRF_TOKEN }
+        });
         if (response.ok) {
             window.location.reload();
         } else {
@@ -691,7 +693,10 @@ async function deleteDeck() {
     if (!confirm('Are you sure you want to delete this deck and all its cards?')) return;
     
     try {
-        const response = await fetch(`/decks/${deckId}/delete`, { method: 'POST' });
+        const response = await fetch(`/decks/${deckId}/delete`, {
+            method: 'POST',
+            headers: { 'X-CSRFToken': window.CSRF_TOKEN }
+        });
         if (response.ok) {
             window.location.href = '/flashcards';
         } else {
@@ -741,7 +746,7 @@ async function uploadBulkCards() {
     try {
         const response = await fetch(`/decks/${deckId}/upload-cards`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': window.CSRF_TOKEN },
             body: JSON.stringify({ cards: cards })
         });
         

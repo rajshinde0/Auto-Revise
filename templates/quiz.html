@@ -1,37 +1,32 @@
-<!DOCTYPE html>
-<html>
-<head>
-    <title>{{ subject }} Quiz</title>
+{% extends "base.html" %}
+
+{% block title %}{{ subject }} Quiz{% endblock %}
+
+{% block extra_css %}
     <style>
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-        }
-        
-        body {
-            font-family: Arial, sans-serif;
-            background: #f5f5f5;
-            padding: 0;
-            margin: 0;
-        }
-        
+        /* The global reset and body styling now come from style.css; this page
+           only defines its own quiz layout. */
+
         .quiz-container {
             display: flex;
-            height: 100vh;
-            overflow: hidden;
+            gap: 1.5rem;
+            align-items: flex-start;
+            /* Was height:100vh/overflow:hidden, which clipped the page once
+               this template started sharing the site navbar and footer. */
+            min-height: calc(100vh - 220px);
         }
-        
+
         /* Sidebar Navigation */
         .sidebar {
             width: 300px;
+            flex: 0 0 300px;
             background: #2c3e50;
             color: white;
             padding: 20px;
-            overflow-y: auto;
+            border-radius: var(--radius-md);
             box-shadow: 2px 0 5px rgba(0,0,0,0.1);
         }
-        
+
         .sidebar h3 {
             margin-bottom: 15px;
             font-size: 18px;
@@ -136,10 +131,10 @@
         }
         
         /* Main Content Area */
-        .main-content {
+        .quiz-main {
             flex: 1;
-            padding: 40px;
-            overflow-y: auto;
+            min-width: 0;
+            padding: 0;
         }
         
         .quiz-header {
@@ -288,9 +283,42 @@
         input[type="radio"]:disabled + span {
             color: #999;
         }
+
+        /* This page previously had no breakpoint at all, so the fixed 300px
+           sidebar squeezed the question panel on narrow screens. */
+        @media (max-width: 768px) {
+            .quiz-container {
+                flex-direction: column;
+                min-height: 0;
+            }
+
+            .sidebar {
+                width: 100%;
+                flex: 1 1 auto;
+                position: static;
+            }
+
+            .question-grid {
+                grid-template-columns: repeat(10, 1fr);
+            }
+
+            .question-block {
+                padding: 20px;
+            }
+
+            .navigation-buttons {
+                flex-wrap: wrap;
+            }
+
+            .nav-btn {
+                flex: 1 1 auto;
+                padding: 12px 18px;
+            }
+        }
     </style>
-</head>
-<body>
+{% endblock %}
+
+{% block content %}
     <div class="quiz-container">
         <!-- Sidebar Navigation -->
         <div class="sidebar">
@@ -337,7 +365,7 @@
         </div>
         
         <!-- Main Content Area -->
-        <div class="main-content">
+        <div class="quiz-main">
             <div class="quiz-header">
                 <h2>{{ subject }} Quiz - {{ questions|length }} Questions</h2>
                 <p>Answer all questions within the time limit. You can navigate between questions using the sidebar or navigation buttons.</p>
@@ -391,6 +419,9 @@
         </div>
     </div>
 
+{% endblock %}
+
+{% block extra_js %}
     <script type="text/javascript">
         // Jinja2 template variables
         const totalQuestions = parseInt('{{ questions|length }}');
@@ -418,7 +449,6 @@
             document.getElementById('remaining-count').textContent = remainingCount;
             document.getElementById('progress-fill').style.width = percentage + '%';
             
-            console.log('Progress updated:', answeredCount, 'answered,', remainingCount, 'remaining');
         }
 
         // Update question navigation buttons
@@ -459,7 +489,6 @@
             currentQuestionIndex = index;
             updateQuestionNav();
             
-            console.log('Showing question', index + 1, 'of', totalQuestions);
         }
 
         // Navigate to specific question
@@ -536,7 +565,6 @@
 
         // Mark question for review
         function markQuestion(qid, index) {
-            console.log('markQuestion called for:', qid);
             if (submitted) return;
 
             const markBtn = document.querySelector(`.mark-btn[data-qid="${qid}"]`);
@@ -562,12 +590,11 @@
             // Send to backend
             fetch('/mark_question', {
                 method: 'POST',
-                headers: {'Content-Type': 'application/json'},
+                headers: {'Content-Type': 'application/json', 'X-CSRFToken': window.CSRF_TOKEN},
                 body: JSON.stringify({q_id: qid})
             })
             .then(response => response.json())
             .then(data => {
-                console.log('Question marked for review successfully');
             })
             .catch(err => {
                 console.error('Mark failed:', err);
@@ -576,17 +603,12 @@
 
         // Submit quiz
         function submitQuiz() {
-            console.log('submitQuiz called');
-            console.log('submitted:', submitted, 'isSubmitting:', isSubmitting);
             
             if (submitted || isSubmitting) {
-                console.log('Already submitted or submitting, returning');
                 return;
             }
 
             const answeredCount = Object.keys(answers).length;
-            console.log(`Answered ${answeredCount} out of ${totalQuestions} questions`);
-            console.log('Answers:', answers);
             
             if (answeredCount < totalQuestions) {
                 const confirmed = confirm(
@@ -597,34 +619,29 @@
 
             // Set submitting flag BEFORE disabling
             isSubmitting = true;
-            console.log('Setting isSubmitting to true');
             
             // Disable interaction
             disableQuizInteraction();
             clearInterval(timerInterval);
 
-            console.log('Sending to backend:', {answers, subject});
 
             // Send answers to backend
             fetch('/submit_quiz', {
                 method: 'POST',
-                headers: {'Content-Type': 'application/json'},
+                headers: {'Content-Type': 'application/json', 'X-CSRFToken': window.CSRF_TOKEN},
                 body: JSON.stringify({
                     answers: answers,
                     subject: subject
                 })
             })
             .then(response => {
-                console.log('Response status:', response.status);
                 if (!response.ok) {
                     throw new Error(`HTTP error! status: ${response.status}`);
                 }
                 return response.json();
             })
             .then(data => {
-                console.log('Response data:', data);
                 if (data.redirect) {
-                    console.log('Redirecting to:', data.redirect);
                     window.location.href = data.redirect;
                 } else if (data.error) {
                     console.error('Server error:', data.error);
@@ -668,7 +685,6 @@
                     }
                     const qid = this.dataset.qid;
                     answers[qid] = this.value;
-                    console.log('Answer recorded:', qid, this.value);
                     
                     // Update progress
                     updateProgress();
@@ -684,7 +700,6 @@
             });
             
             // Start the timer
-            console.log('Starting timer...');
             startTimer();
             
             // Show first question
@@ -692,7 +707,4 @@
             updateProgress();
         });
     </script>
-</body>
-</html>
-
-
+{% endblock %}

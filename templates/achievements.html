@@ -12,7 +12,7 @@
     
     /* Header Section */
     .page-header {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        background: var(--gradient-primary);
         color: white;
         padding: 50px;
         border-radius: 20px;
@@ -87,7 +87,7 @@
     .stat-value {
         font-size: 36px;
         font-weight: bold;
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        background: var(--gradient-primary);
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
         margin: 10px 0 5px 0;
@@ -173,10 +173,20 @@
         background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
     }
     
+    /* Dim the card's chrome, not its text: a blanket opacity/grayscale over
+       the whole card pushed the small description copy below WCAG AA. The
+       icon below is still fully desaturated to signal the locked state. */
     .achievement-card.locked {
-        opacity: 0.65;
         background: #fafafa;
-        filter: grayscale(40%);
+        border-color: #e2e2e2;
+    }
+
+    .achievement-card.locked .achievement-title {
+        color: var(--color-subtle);
+    }
+
+    .achievement-card.locked .achievement-description {
+        color: var(--color-subtle);
     }
     
     .achievement-card:hover {
@@ -214,7 +224,7 @@
     
     .achievement-description {
         font-size: 14px;
-        color: #666;
+        color: var(--color-subtle);
         line-height: 1.5;
         margin: 0;
     }
