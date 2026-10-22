@@ -1,10 +1,11 @@
 from flask import Flask, render_template, request, jsonify, session, redirect, url_for, flash
-from flask_wtf.csrf import CSRFProtect
+from flask_wtf.csrf import CSRFProtect, CSRFError
 from functools import wraps
 from datetime import datetime, timedelta, date
 import bcrypt
 import secrets
 import os
+import re
 import sys
 import logging
 import csv
@@ -15,13 +16,13 @@ from dotenv import load_dotenv
 # Add src directory to path for imports
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'src'))
 
-from db_config import get_connection
-from achievement_system import check_and_unlock_achievements
+from db_config import get_connection, get_db_connection, get_db_cursor
+from achievement_system import check_and_unlock_achievements, VALID_SUBJECTS
 from flashcard_system import (
     get_user_decks, create_deck, get_deck, delete_deck,
     get_deck_cards, create_card, update_card, delete_card, bulk_create_cards,
     get_study_cards, submit_card_review, get_user_stats, get_study_log,
-    calculate_sm2, get_review_intervals
+    calculate_sm2
 )
 
 # Load environment variables
@@ -30,15 +31,45 @@ load_dotenv()
 app = Flask(__name__)
 
 # Security Configuration from environment variables
-app.secret_key = os.getenv('SECRET_KEY', 'fallback-secret-key-for-development-only')
+_secret_key = os.getenv('SECRET_KEY')
+if not _secret_key:
+    # Fall back so a fresh clone without a .env still boots, but make it loud:
+    # sessions signed with a known key can be forged.
+    _secret_key = 'fallback-secret-key-for-development-only'
+app.secret_key = _secret_key
 app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=int(os.getenv('SESSION_LIFETIME_DAYS', 7)))
 
-# CSRF Protection - Temporarily disabled until we add tokens to all forms
-# We'll enable this after updating all templates
-csrf_enabled = os.getenv('CSRF_ENABLED', 'False').lower() == 'true'
-if csrf_enabled:
-    csrf = CSRFProtect(app)
-    app.config['WTF_CSRF_TIME_LIMIT'] = None  # CSRF tokens don't expire
+# Session cookie hardening. SECURE defaults to False so local HTTP development
+# keeps working; set SESSION_COOKIE_SECURE=True when serving over HTTPS.
+app.config['SESSION_COOKIE_HTTPONLY'] = True
+app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
+app.config['SESSION_COOKIE_SECURE'] = os.getenv('SESSION_COOKIE_SECURE', 'False').lower() == 'true'
+
+# Cap request bodies so a CSV upload cannot exhaust memory.
+app.config['MAX_CONTENT_LENGTH'] = int(os.getenv('MAX_UPLOAD_MB', 5)) * 1024 * 1024
+
+# Login throttling knobs (previously hardcoded, so these .env values did nothing).
+LOGIN_ATTEMPTS_LIMIT = int(os.getenv('LOGIN_ATTEMPTS_LIMIT', 5))
+LOGIN_ATTEMPTS_WINDOW_MINUTES = int(os.getenv('LOGIN_ATTEMPTS_WINDOW_MINUTES', 15))
+
+# Previously magic numbers scattered through the queries below.
+QUIZ_QUESTION_COUNT = int(os.getenv('QUIZ_QUESTION_COUNT', 20))
+LEADERBOARD_SIZE = int(os.getenv('LEADERBOARD_SIZE', 50))
+
+# CSRF Protection - enabled by default. Tokens are supplied by base.html's
+# <meta name="csrf-token"> (read by fetch() callers) and by a hidden field in
+# the login/register forms.
+#
+# CSRFProtect is initialised unconditionally so that csrf_token() always
+# exists in Jinja; CSRF_ENABLED only controls *enforcement*. Initialising it
+# conditionally would make every template that renders a token blow up with
+# "'csrf_token' is undefined" whenever the feature was switched off.
+csrf_enabled = os.getenv('CSRF_ENABLED', 'True').lower() == 'true'
+app.config['WTF_CSRF_ENABLED'] = csrf_enabled
+app.config['WTF_CSRF_TIME_LIMIT'] = None  # CSRF tokens don't expire
+csrf = CSRFProtect(app)
+if not csrf_enabled:
+    app.logger.warning('CSRF protection is DISABLED (CSRF_ENABLED=False).')
 
 # Configure logging
 if not os.path.exists('logs'):
@@ -52,6 +83,18 @@ file_handler.setLevel(logging.INFO)
 app.logger.addHandler(file_handler)
 app.logger.setLevel(logging.INFO)
 app.logger.info('MCQ Application startup')
+
+if not os.getenv('SECRET_KEY'):
+    app.logger.warning(
+        'SECRET_KEY is not set; using the insecure built-in fallback. '
+        'Set SECRET_KEY in .env before deploying.'
+    )
+
+
+@app.context_processor
+def inject_current_year():
+    """Make the current year available to every template (used in the footer)."""
+    return {'current_year': datetime.now().year}
 
 
 # ---------------- AUTHENTICATION DECORATOR ----------------
@@ -77,106 +120,34 @@ def admin_required(f):
     return decorated_function
 
 
-# ---------------- INITIALIZE DATABASE TABLES ----------------
-def init_database():
-    """Create required tables if they don't exist"""
-    conn = get_connection()
-    cur = conn.cursor()
-    
-    # Create user_answers table
-    cur.execute("""
-        CREATE TABLE IF NOT EXISTS user_answers (
-            id INT PRIMARY KEY AUTO_INCREMENT,
-            result_id INT NOT NULL,
-            q_id INT NOT NULL,
-            user_answer VARCHAR(255),
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            INDEX idx_result_id (result_id),
-            INDEX idx_q_id (q_id)
-        )
-    """)
-    
-    # Create achievements definition table
-    cur.execute("""
-        CREATE TABLE IF NOT EXISTS achievements (
-            achievement_id INT PRIMARY KEY AUTO_INCREMENT,
-            achievement_code VARCHAR(50) UNIQUE NOT NULL,
-            title VARCHAR(100) NOT NULL,
-            description TEXT,
-            icon VARCHAR(10),
-            requirement_type VARCHAR(50),
-            requirement_value INT,
-            subject VARCHAR(50),
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        )
-    """)
-    
-    # Create user achievements tracking table
-    cur.execute("""
-        CREATE TABLE IF NOT EXISTS user_achievements (
-            id INT PRIMARY KEY AUTO_INCREMENT,
-            user_id INT NOT NULL,
-            achievement_id INT NOT NULL,
-            unlocked_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            UNIQUE KEY unique_user_achievement (user_id, achievement_id),
-            INDEX idx_user_id (user_id),
-            INDEX idx_achievement_id (achievement_id),
-            FOREIGN KEY (achievement_id) REFERENCES achievements(achievement_id)
-        )
-    """)
-    
-    # Create user statistics table
-    cur.execute("""
-        CREATE TABLE IF NOT EXISTS user_statistics (
-            id INT PRIMARY KEY AUTO_INCREMENT,
-            user_id INT NOT NULL,
-            total_questions_solved INT DEFAULT 0,
-            perfect_quizzes_count INT DEFAULT 0,
-            physics_100_count INT DEFAULT 0,
-            chemistry_100_count INT DEFAULT 0,
-            biology_100_count INT DEFAULT 0,
-            mathematics_100_count INT DEFAULT 0,
-            physics_completed BOOLEAN DEFAULT FALSE,
-            chemistry_completed BOOLEAN DEFAULT FALSE,
-            biology_completed BOOLEAN DEFAULT FALSE,
-            mathematics_completed BOOLEAN DEFAULT FALSE,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-            UNIQUE KEY unique_user (user_id)
-        )
-    """)
-    
-    conn.commit()
-    
-    # Insert achievement definitions if not exists
-    cur.execute("SELECT COUNT(*) FROM achievements")
-    if cur.fetchone()[0] == 0:
-        achievements_data = [
-            ('first_quiz_physics', '🏁 Physics Pioneer', 'Complete your first Physics quiz', '🏁', 'first_quiz', 1, 'Physics'),
-            ('first_quiz_chemistry', '🏁 Chemistry Champion', 'Complete your first Chemistry quiz', '🏁', 'first_quiz', 1, 'Chemistry'),
-            ('first_quiz_biology', '🏁 Biology Beginner', 'Complete your first Biology quiz', '🏁', 'first_quiz', 1, 'Biology'),
-            ('first_quiz_mathematics', '🏁 Math Master Start', 'Complete your first Mathematics quiz', '🏁', 'first_quiz', 1, 'Mathematics'),
-            ('10_questions', '🔟 Quick Learner', 'Solve 10 total questions', '🔟', 'questions_solved', 10, None),
-            ('50_questions', '💯 Knowledge Seeker', 'Solve 50 total questions', '💯', 'questions_solved', 50, None),
-            ('100_questions', '🧠 Brain Power', 'Solve 100 total questions', '🧠', 'questions_solved', 100, None),
-            ('perfect_quiz', '🥇 Perfect Score', 'Score 100% on any quiz', '🥇', 'perfect_quiz', 1, None),
-            ('subject_master', '🌟 Ultimate Master', 'Score 100% in all four subjects', '🌟', 'all_subjects_perfect', 4, None)
-        ]
-        
-        cur.executemany("""
-            INSERT INTO achievements (achievement_code, title, description, icon, requirement_type, requirement_value, subject)
-            VALUES (%s, %s, %s, %s, %s, %s, %s)
-        """, achievements_data)
-        conn.commit()
-        print("Achievement definitions created successfully")
-    
-    cur.close()
-    conn.close()
-    print("Database tables initialized successfully")
+# ---------------- UPLOAD VALIDATION ----------------
+# Browsers report CSV files inconsistently, so accept the handful of types
+# they actually send rather than trusting the filename alone.
+ALLOWED_CSV_MIMETYPES = {
+    'text/csv', 'text/plain', 'application/csv',
+    'application/vnd.ms-excel', 'application/octet-stream',
+}
 
-# Database already migrated using migrate_achievements.py
-# Uncomment below line only if you need to recreate tables:
-# init_database()
+
+def validate_csv_upload(file):
+    """
+    Validate an uploaded CSV. Returns an error string, or None if it's fine.
+
+    Size is enforced by MAX_CONTENT_LENGTH (Flask aborts with 413 before the
+    request body reaches here), so this only has to check the shape.
+    """
+    if not file or not file.filename:
+        return 'No file provided'
+
+    if not file.filename.lower().endswith('.csv'):
+        return 'Invalid file. Must be a .csv file'
+
+    if file.mimetype and file.mimetype not in ALLOWED_CSV_MIMETYPES:
+        return f'Unsupported content type: {file.mimetype}. Expected a CSV file.'
+
+    return None
+
+
 
 
 # ---------------- AUTHENTICATION ROUTES ----------------
@@ -198,48 +169,56 @@ def register():
             flash('Passwords do not match!', 'error')
             return render_template('register.html')
         
-        if len(password) < 6:
-            flash('Password must be at least 6 characters long!', 'error')
+        if len(password) < 8:
+            flash('Password must be at least 8 characters long!', 'error')
             return render_template('register.html')
-        
+
+        if not (re.search(r'[A-Za-z]', password) and re.search(r'\d', password)):
+            flash('Password must contain at least one letter and one number!', 'error')
+            return render_template('register.html')
+
         if len(username) < 3:
             flash('Username must be at least 3 characters long!', 'error')
             return render_template('register.html')
-        
-        # Check if username/email already exists
-        conn = get_connection()
-        cursor = conn.cursor(dictionary=True)
-        
-        cursor.execute('SELECT user_id FROM users WHERE username = %s OR email = %s', (username, email))
-        existing_user = cursor.fetchone()
-        
-        if existing_user:
-            cursor.close()
-            conn.close()
-            flash('Username or email already exists!', 'error')
-            return render_template('register.html')
-        
+
         # Hash password and create user
         password_hash = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt())
-        
-        try:
-            cursor.execute('''
-                INSERT INTO users (username, email, password_hash, full_name, is_admin, created_at)
-                VALUES (%s, %s, %s, %s, 0, NOW())
-            ''', (username, email, password_hash, full_name))
-            conn.commit()
-            
-            flash('Registration successful! Please login.', 'success')
-            cursor.close()
-            conn.close()
-            return redirect(url_for('login'))
-        except Exception as e:
-            conn.rollback()
-            cursor.close()
-            conn.close()
-            flash(f'Registration failed: {str(e)}', 'error')
-            return render_template('register.html')
-    
+
+        with get_db_connection() as conn:
+            cursor = conn.cursor(dictionary=True)
+            try:
+                # Check if username/email already exists. This is advisory
+                # only - two concurrent registrations can both pass it, so the
+                # UNIQUE constraint below is the real guard and a duplicate
+                # key error is handled as a normal "already taken" outcome.
+                cursor.execute(
+                    'SELECT user_id FROM users WHERE username = %s OR email = %s',
+                    (username, email)
+                )
+                if cursor.fetchone():
+                    flash('Username or email already exists!', 'error')
+                    return render_template('register.html')
+
+                cursor.execute('''
+                    INSERT INTO users (username, email, password_hash, full_name, is_admin, created_at)
+                    VALUES (%s, %s, %s, %s, 0, NOW())
+                ''', (username, email, password_hash, full_name))
+                conn.commit()
+
+                flash('Registration successful! Please login.', 'success')
+                return redirect(url_for('login'))
+            except Exception as e:
+                conn.rollback()
+                if getattr(e, 'errno', None) == 1062:
+                    # Lost the race against a concurrent signup.
+                    flash('Username or email already exists!', 'error')
+                else:
+                    app.logger.error('Registration failed for %r', username, exc_info=True)
+                    flash('Registration failed. Please try again.', 'error')
+                return render_template('register.html')
+            finally:
+                cursor.close()
+
     return render_template('register.html')
 
 
@@ -253,90 +232,91 @@ def login():
             flash('Username and password are required!', 'error')
             return render_template('login.html')
         
-        conn = get_connection()
-        cursor = conn.cursor(dictionary=True)
-        
-        # Rate limiting check
-        ip_address = request.remote_addr
-        cursor.execute('''
-            SELECT COUNT(*) as attempts 
-            FROM login_attempts 
-            WHERE username = %s 
-            AND success = 0 
-            AND attempted_at > DATE_SUB(NOW(), INTERVAL 15 MINUTE)
-        ''', (username,))
-        
-        attempts = cursor.fetchone()['attempts']
-        
-        if attempts >= 5:
-            cursor.close()
-            conn.close()
-            flash('Too many failed login attempts. Please try again in 15 minutes.', 'error')
-            return render_template('login.html')
-        
-        # Fetch user
-        cursor.execute('SELECT * FROM users WHERE username = %s', (username,))
-        user = cursor.fetchone()
-        
-        if user and bcrypt.checkpw(password.encode('utf-8'), user['password_hash'].encode('utf-8')):
-            # Successful login
-            cursor.execute('''
-                INSERT INTO login_attempts (username, ip_address, attempted_at, success)
-                VALUES (%s, %s, NOW(), 1)
-            ''', (username, ip_address))
-            
-            # Create session
-            session['user_id'] = user['user_id']
-            session['username'] = user['username']
-            session['is_admin'] = user['is_admin']
-            session['full_name'] = user['full_name']
-            session.permanent = True
-            
-            # Store session in database
-            session_id = secrets.token_urlsafe(32)
-            expires_at = datetime.now() + timedelta(days=7)
-            
-            cursor.execute('''
-                INSERT INTO user_sessions (session_id, user_id, created_at, expires_at, ip_address)
-                VALUES (%s, %s, NOW(), %s, %s)
-            ''', (session_id, user['user_id'], expires_at, ip_address))
-            
-            conn.commit()
-            cursor.close()
-            conn.close()
-            
-            flash(f'Welcome back, {user["full_name"]}!', 'success')
-            return redirect(url_for('index'))
-        else:
-            # Failed login
-            cursor.execute('''
-                INSERT INTO login_attempts (username, ip_address, attempted_at, success)
-                VALUES (%s, %s, NOW(), 0)
-            ''', (username, ip_address))
-            conn.commit()
-            cursor.close()
-            conn.close()
-            
-            flash('Invalid username or password!', 'error')
-            return render_template('login.html')
-    
+        with get_db_connection() as conn:
+            cursor = conn.cursor(dictionary=True)
+            try:
+                # Rate limiting check. Counted per (username, IP) so a single
+                # attacker cannot lock a known username out for everyone by
+                # deliberately failing logins against it.
+                ip_address = request.remote_addr
+                cursor.execute('''
+                    SELECT COUNT(*) as attempts
+                    FROM login_attempts
+                    WHERE username = %s
+                    AND ip_address = %s
+                    AND success = 0
+                    AND attempted_at > DATE_SUB(NOW(), INTERVAL %s MINUTE)
+                ''', (username, ip_address, LOGIN_ATTEMPTS_WINDOW_MINUTES))
+
+                attempts = cursor.fetchone()['attempts']
+
+                if attempts >= LOGIN_ATTEMPTS_LIMIT:
+                    flash(
+                        'Too many failed login attempts. Please try again in '
+                        f'{LOGIN_ATTEMPTS_WINDOW_MINUTES} minutes.', 'error'
+                    )
+                    return render_template('login.html')
+
+                # Fetch user
+                cursor.execute('SELECT * FROM users WHERE username = %s', (username,))
+                user = cursor.fetchone()
+
+                if user and bcrypt.checkpw(password.encode('utf-8'), user['password_hash'].encode('utf-8')):
+                    # Successful login
+                    cursor.execute('''
+                        INSERT INTO login_attempts (username, ip_address, attempted_at, success)
+                        VALUES (%s, %s, NOW(), 1)
+                    ''', (username, ip_address))
+
+                    # Create session
+                    session['user_id'] = user['user_id']
+                    session['username'] = user['username']
+                    session['is_admin'] = user['is_admin']
+                    session['full_name'] = user['full_name']
+                    session.permanent = True
+
+                    # Store session in database
+                    session_id = secrets.token_urlsafe(32)
+                    expires_at = datetime.now() + app.config['PERMANENT_SESSION_LIFETIME']
+
+                    cursor.execute('''
+                        INSERT INTO user_sessions (session_id, user_id, created_at, expires_at, ip_address)
+                        VALUES (%s, %s, NOW(), %s, %s)
+                    ''', (session_id, user['user_id'], expires_at, ip_address))
+
+                    conn.commit()
+
+                    flash(f'Welcome back, {user["full_name"]}!', 'success')
+                    return redirect(url_for('index'))
+                else:
+                    # Failed login
+                    cursor.execute('''
+                        INSERT INTO login_attempts (username, ip_address, attempted_at, success)
+                        VALUES (%s, %s, NOW(), 0)
+                    ''', (username, ip_address))
+                    conn.commit()
+
+                    flash('Invalid username or password!', 'error')
+                    return render_template('login.html')
+            finally:
+                cursor.close()
+
     return render_template('login.html')
 
 
 @app.route('/logout')
 def logout():
     user_id = session.get('user_id')
-    
+
     if user_id:
-        conn = get_connection()
-        cursor = conn.cursor()
-        
-        # Delete user sessions
-        cursor.execute('DELETE FROM user_sessions WHERE user_id = %s', (user_id,))
-        conn.commit()
-        cursor.close()
-        conn.close()
-    
+        with get_db_connection() as conn:
+            cursor = conn.cursor()
+
+            # Delete user sessions
+            cursor.execute('DELETE FROM user_sessions WHERE user_id = %s', (user_id,))
+            conn.commit()
+            cursor.close()
+
     session.clear()
     flash('You have been logged out successfully.', 'success')
     return redirect(url_for('index'))
@@ -352,61 +332,54 @@ def index():
 @app.route('/quiz/<subject>')
 @login_required
 def quiz(subject):
-    from datetime import datetime
     import random
-    
-    print(f"=== QUIZ PAGE: {subject} ===")
-    print(f"User ID: {session.get('user_id')}, Username: {session.get('username')}")
-    
+
+    app.logger.info('Quiz page requested: subject=%r user_id=%s', subject, session.get('user_id'))
+
     # Track quiz start time
     session['quiz_start_time'] = datetime.now().isoformat()
-    
-    conn = get_connection()
-    cursor = conn.cursor(dictionary=True)
-    
-    # OPTIMIZED: Replace RAND() with efficient subquery approach
-    # RAND() is O(n log n), this is O(n) + O(log n)
-    # Step 1: Get total count and calculate offset
-    cursor.execute(
-        "SELECT COUNT(*) as total FROM questions WHERE subject=%s",
-        (subject,)
-    )
-    total_questions = cursor.fetchone()['total']
-    
-    # Step 2: Get questions using indexed selection
-    if total_questions > 20:
-        # Use deterministic pseudo-random selection based on user_id and time
-        seed = hash(str(session.get('user_id')) + str(datetime.now().timestamp())) % total_questions
-        
-        # Fetch using modulo-based selection (much faster than RAND())
-        cursor.execute("""
-            SELECT q.* FROM (
-                SELECT @row := @row + 1 as row_num, questions.*
-                FROM questions, (SELECT @row := 0) r
-                WHERE subject = %s
-                ORDER BY q_id
-            ) q
-            WHERE MOD(q.row_num + %s, %s) < 20
-            LIMIT 20
-        """, (subject, seed, total_questions))
-    else:
-        # If total questions <= 20, just get all
+
+    with get_db_cursor(dictionary=True) as cursor:
+        # OPTIMIZED: Replace RAND() with efficient subquery approach
+        # RAND() is O(n log n), this is O(n) + O(log n)
+        # Step 1: Get total count and calculate offset
         cursor.execute(
-            "SELECT * FROM questions WHERE subject=%s ORDER BY q_id",
+            "SELECT COUNT(*) as total FROM questions WHERE subject=%s",
             (subject,)
         )
-    
-    questions = cursor.fetchall()
-    
+        total_questions = cursor.fetchone()['total']
+
+        # Step 2: Get questions using indexed selection
+        if total_questions > QUIZ_QUESTION_COUNT:
+            # Pseudo-random offset so each visit gets a different slice.
+            seed = random.randrange(total_questions)
+
+            # Fetch using modulo-based selection (much faster than RAND())
+            cursor.execute("""
+                SELECT q.* FROM (
+                    SELECT @row := @row + 1 as row_num, questions.*
+                    FROM questions, (SELECT @row := 0) r
+                    WHERE subject = %s
+                    ORDER BY q_id
+                ) q
+                WHERE MOD(q.row_num + %s, %s) < %s
+                LIMIT %s
+            """, (subject, seed, total_questions, QUIZ_QUESTION_COUNT, QUIZ_QUESTION_COUNT))
+        else:
+            # If total questions <= the quiz size, just get all
+            cursor.execute(
+                "SELECT * FROM questions WHERE subject=%s ORDER BY q_id",
+                (subject,)
+            )
+
+        questions = cursor.fetchall()
+
     # Shuffle in Python (much faster than DB RAND())
     random.shuffle(questions)
-    
-    cursor.close()
-    conn.close()
-    
-    print(f"Loaded {len(questions)} questions (optimized query)")
+
+    app.logger.info('Loaded %s questions for subject=%r', len(questions), subject)
     session['quiz_subject'] = subject
-    
+
     return render_template('quiz.html', questions=questions, subject=subject)
 
 
@@ -428,11 +401,11 @@ def save_result_to_db(conn, user_id, subject, score, total):
 def save_user_answers(conn, result_id, answers):
     """Save user's answers to database for review later - OPTIMIZED with batch insert"""
     if not answers:
-        print("No answers to save")
+        app.logger.info('No answers to save for result_id %s', result_id)
         return
-        
+
     cur = conn.cursor()
-    
+
     try:
         # Batch insert - much more efficient than loop
         values = [(result_id, int(q_id), answer) for q_id, answer in answers.items()]
@@ -440,10 +413,10 @@ def save_user_answers(conn, result_id, answers):
             INSERT INTO user_answers (result_id, q_id, user_answer)
             VALUES (%s, %s, %s)
         """, values)
-        
-        print(f"Saved {len(answers)} user answers for result_id {result_id}")
-    except Exception as e:
-        print(f"Error saving user answers: {e}")
+
+        app.logger.info('Saved %s user answers for result_id %s', len(answers), result_id)
+    except Exception:
+        app.logger.error('Error saving user answers for result_id %s', result_id, exc_info=True)
         raise  # Re-raise to handle in calling function
     finally:
         cur.close()
@@ -458,19 +431,21 @@ def save_user_answers(conn, result_id, answers):
 @app.route('/submit_quiz', methods=['POST'])
 @login_required
 def submit_quiz():
-    from datetime import datetime, timedelta
-    
-    print("=== SUBMIT QUIZ CALLED ===")
     quiz_end_time = datetime.now()  # Record when quiz was submitted
-    
-    data = request.get_json(force=True)
-    print("Received data:", data)
-    
+
+    data = request.get_json(force=True, silent=True) or {}
+
     answers = data.get('answers', {})
     subject = data.get('subject') or session.get('quiz_subject')
     user_id = session.get('user_id')  # Get from authenticated session
     quiz_start_time = session.get('quiz_start_time')  # Get start time from session
-    
+
+    if not isinstance(answers, dict):
+        return jsonify({"error": "answers must be an object"}), 400
+
+    if not subject:
+        return jsonify({"error": "no subject supplied"}), 400
+
     # If start time not in session, estimate it (fallback)
     if not quiz_start_time:
         # Estimate: assume 2 minutes per question as default
@@ -479,21 +454,21 @@ def submit_quiz():
         quiz_start_time = quiz_end_time - estimated_duration
     else:
         quiz_start_time = datetime.fromisoformat(quiz_start_time)
-    
-    print(f"Answers: {answers}")
-    print(f"Subject: {subject}")
-    print(f"User ID: {user_id}")
-    print(f"Quiz duration: {(quiz_end_time - quiz_start_time).total_seconds()} seconds")
+
+    app.logger.info(
+        'Quiz submitted: user_id=%s subject=%r answers=%s duration=%.1fs',
+        user_id, subject, len(answers),
+        (quiz_end_time - quiz_start_time).total_seconds()
+    )
+    app.logger.debug('Submitted answers payload: %s', answers)
 
     qids = list(answers.keys())
     if not qids:
-        print("ERROR: No answers received")
         return jsonify({"error": "no answers received"}), 400
 
     try:
         qids_int = [int(q) for q in qids]
-    except ValueError:
-        print("ERROR: Invalid question IDs")
+    except (TypeError, ValueError):
         return jsonify({"error": "invalid question ids"}), 400
 
     placeholders = ','.join(['%s'] * len(qids_int))
@@ -519,8 +494,8 @@ def submit_quiz():
                 r['option_d']: 'D'
             }
             correct_map[qid] = option_map.get(correct_text)
-        
-        print(f"Correct answers map: {correct_map}")
+
+        app.logger.debug('Correct answers map: %s', correct_map)
 
         # Calculate score
         score = 0
@@ -528,37 +503,32 @@ def submit_quiz():
             correct = correct_map.get(str(qid))
             if correct and str(given).strip().upper() == correct:
                 score += 1
-            print(f"Q{qid}: Given={given}, Correct={correct}, Match={str(given).strip().upper() == correct}")
 
         total = len(qids_int)
         percentage = round((score / total) * 100, 2) if total else 0.0
-        
-        print(f"Final Score: {score}/{total} = {percentage}%")
+
+        app.logger.info('Quiz scored: user_id=%s %s/%s (%s%%)', user_id, score, total, percentage)
 
         # Save to database - OPTIMIZED: single connection for all operations
         result_id = save_result_to_db(conn, user_id, subject, score, total)
-        print(f"Result saved to database successfully with result_id: {result_id}")
-        
+
         # Save user answers for later review
         save_user_answers(conn, result_id, answers)
-        print("User answers saved successfully")
-        
+
         # Check and unlock achievements with timing data
         newly_unlocked = check_and_unlock_achievements(
-            conn, user_id, subject, score, total, percentage, 
+            conn, user_id, subject, score, total, percentage,
             result_id, quiz_start_time, quiz_end_time
         )
-        print(f"Achievements checked: {len(newly_unlocked)} newly unlocked")
-        
+        app.logger.info('Achievements checked: %s newly unlocked', len(newly_unlocked))
+
         # Commit all changes together
         conn.commit()
-        
-    except Exception as e:
-        print(f"ERROR saving to database: {e}")
-        import traceback
-        traceback.print_exc()
+
+    except Exception:
+        app.logger.error('Failed to save quiz submission for user %s', user_id, exc_info=True)
         conn.rollback()
-        return jsonify({"error": f"Database error: {str(e)}"}), 500
+        return jsonify({"error": "Could not save your quiz. Please try again."}), 500
     finally:
         cur.close()
         conn.close()
@@ -575,8 +545,7 @@ def submit_quiz():
     # Clear quiz start time from session
     session.pop('quiz_start_time', None)
     
-    print("Session last_result set:", session['last_result'])
-    print(f"Redirecting to: {url_for('show_latest_result')}")
+    app.logger.debug('Stored last_result in session: %s', session['last_result'])
 
     return jsonify({"redirect": url_for('show_latest_result')})
 
@@ -585,15 +554,12 @@ def submit_quiz():
 @app.route('/show_result')
 @login_required
 def show_latest_result():
-    print("=== SHOW RESULT CALLED ===")
     result = session.get('last_result')
-    print(f"Session last_result: {result}")
-    
+
     if not result:
-        print("No result found in session, redirecting to index")
+        app.logger.info('No result in session; redirecting to index')
         return redirect(url_for('index'))
-    
-    print("Rendering result.html with result:", result)
+
     return render_template('result.html', result=result)
 
 
@@ -601,31 +567,33 @@ def show_latest_result():
 @app.route('/mark_question', methods=['POST'])
 @login_required
 def mark_question():
-    print("=== MARK QUESTION CALLED ===")
-    data = request.get_json()
-    print(f"Received data: {data}")
-    
-    q_id = data.get('q_id')
+    data = request.get_json(silent=True) or {}
     user_id = session.get('user_id')  # Get from authenticated session
-    
-    print(f"Marking question {q_id} for user {user_id}")
+
+    # Validate before touching the DB - a missing/non-numeric q_id used to be
+    # inserted as NULL without complaint.
+    try:
+        q_id = int(data['q_id'])
+    except (KeyError, TypeError, ValueError):
+        return jsonify({'error': 'A valid q_id is required.'}), 400
 
     try:
-        conn = get_connection()
-        cursor = conn.cursor()
-        cursor.execute("""
-            INSERT INTO marked_questions (user_id, q_id)
-            VALUES (%s, %s)
-            ON DUPLICATE KEY UPDATE q_id = q_id
-        """, (user_id, q_id))
-        conn.commit()
-        cursor.close()
-        conn.close()
-        print("Question marked successfully")
+        with get_db_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                INSERT INTO marked_questions (user_id, q_id)
+                VALUES (%s, %s)
+                ON DUPLICATE KEY UPDATE q_id = q_id
+            """, (user_id, q_id))
+            conn.commit()
+            cursor.close()
+        app.logger.info('Question %s marked by user %s', q_id, user_id)
         return jsonify({'message': 'Question marked successfully.', 'success': True})
-    except Exception as e:
-        print(f"ERROR marking question: {e}")
-        return jsonify({'message': 'Failed to mark question.', 'error': str(e)}), 500
+    except Exception:
+        app.logger.error(
+            'Failed to mark question %s for user %s', q_id, user_id, exc_info=True
+        )
+        return jsonify({'error': 'Failed to mark question.'}), 500
 
 
 # ---------------- VIEW ALL RESULTS ----------------
@@ -633,17 +601,14 @@ def mark_question():
 @login_required
 def view_results():
     user_id = session.get('user_id')  # Get from authenticated session
-    conn = get_connection()
-    cur = conn.cursor(dictionary=True)
-    cur.execute("""
-        SELECT result_id, subject, score, total_questions, percentage, submitted_at
-        FROM results
-        WHERE user_id = %s
-        ORDER BY submitted_at DESC
-    """, (user_id,))
-    results = cur.fetchall()
-    cur.close()
-    conn.close()
+    with get_db_cursor(dictionary=True) as cur:
+        cur.execute("""
+            SELECT result_id, subject, score, total_questions, percentage, submitted_at
+            FROM results
+            WHERE user_id = %s
+            ORDER BY submitted_at DESC
+        """, (user_id,))
+        results = cur.fetchall()
     return render_template('results.html', results=results)
 
 
@@ -652,27 +617,26 @@ def view_results():
 @login_required
 def view_achievements():
     user_id = session.get('user_id')  # Get from authenticated session
-    conn = get_connection()
-    cur = conn.cursor(dictionary=True)
-    
-    # Get all achievement definitions with category grouping
-    cur.execute("""
-        SELECT a.achievement_id, a.achievement_code, a.title, a.description, 
-               a.icon, a.category, a.requirement_type, a.requirement_value, a.subject,
-               ua.unlocked_at, ua.progress_when_unlocked,
-               CASE WHEN ua.id IS NOT NULL THEN TRUE ELSE FALSE END as is_unlocked
-        FROM achievements a
-        LEFT JOIN user_achievements ua ON a.achievement_id = ua.achievement_id AND ua.user_id = %s
-        ORDER BY a.category, a.achievement_id
-    """, (user_id,))
-    all_achievements = cur.fetchall()
-    
-    # Get comprehensive user statistics
-    cur.execute("""
-        SELECT * FROM user_statistics WHERE user_id = %s
-    """, (user_id,))
-    stats = cur.fetchone()
-    
+
+    with get_db_cursor(dictionary=True) as cur:
+        # Get all achievement definitions with category grouping
+        cur.execute("""
+            SELECT a.achievement_id, a.achievement_code, a.title, a.description,
+                   a.icon, a.category, a.requirement_type, a.requirement_value, a.subject,
+                   ua.unlocked_at, ua.progress_when_unlocked,
+                   CASE WHEN ua.id IS NOT NULL THEN TRUE ELSE FALSE END as is_unlocked
+            FROM achievements a
+            LEFT JOIN user_achievements ua ON a.achievement_id = ua.achievement_id AND ua.user_id = %s
+            ORDER BY a.category, a.achievement_id
+        """, (user_id,))
+        all_achievements = cur.fetchall()
+
+        # Get comprehensive user statistics
+        cur.execute("""
+            SELECT * FROM user_statistics WHERE user_id = %s
+        """, (user_id,))
+        stats = cur.fetchone()
+
     if not stats:
         stats = {
             'total_quizzes_completed': 0,
@@ -722,8 +686,9 @@ def view_achievements():
                 achievement['progress_text'] = "Complete your first quiz"
                 
             elif req_type == 'first_quiz_subject':
-                subj = achievement['subject'].lower()
-                current = 1 if stats.get(f'{subj}_quizzes', 0) > 0 else 0
+                # subject is nullable in the achievements table, so guard it
+                subj = (achievement['subject'] or '').lower()
+                current = 1 if (stats.get(f'{subj}_quizzes') or 0) > 0 else 0
                 achievement['progress'] = current * 100
                 achievement['progress_text'] = f"Complete first {achievement['subject']} quiz"
                 
@@ -808,11 +773,8 @@ def view_achievements():
     unlocked_count = sum(1 for a in all_achievements if a['is_unlocked'])
     total_count = len(all_achievements)
     completion_percentage = int((unlocked_count / total_count) * 100) if total_count > 0 else 0
-    
-    cur.close()
-    conn.close()
-    
-    return render_template('achievements.html', 
+
+    return render_template('achievements.html',
                          achievements=all_achievements,
                          achievements_by_category=achievements_by_category,
                          stats=stats,
@@ -826,110 +788,85 @@ def view_achievements():
 @app.route('/review_quiz/<int:result_id>')
 @login_required
 def review_quiz(result_id):
-    print(f"=== REVIEW QUIZ for result_id: {result_id} ===")
     user_id = session.get('user_id')  # Get from authenticated session
-    
-    conn = get_connection()
-    cur = conn.cursor(dictionary=True)
-    
+
     try:
-        # Get result details
-        cur.execute("""
-            SELECT subject, score, total_questions, percentage, submitted_at
-            FROM results
-            WHERE result_id = %s AND user_id = %s
-        """, (result_id, user_id))
-        result = cur.fetchone()
-        
-        if not result:
-            cur.close()
-            conn.close()
-            return redirect(url_for('view_results'))
-        
-        # Track review for achievement
-        incorrect_count = result['total_questions'] - result['score']
-        if incorrect_count > 0:
-            cur.execute("""
-                INSERT INTO user_statistics (user_id, total_reviews, incorrect_answers_reviewed)
-                VALUES (%s, 1, %s)
-                ON DUPLICATE KEY UPDATE 
-                    total_reviews = total_reviews + 1,
-                    incorrect_answers_reviewed = incorrect_answers_reviewed + %s
-            """, (user_id, incorrect_count, incorrect_count))
-            
-            # Check for Error Learner achievement
-            cur.execute("SELECT incorrect_answers_reviewed FROM user_statistics WHERE user_id = %s", (user_id,))
-            stats = cur.fetchone()
-            if stats and stats['incorrect_answers_reviewed'] >= 50:
+        with get_db_connection() as conn:
+            cur = conn.cursor(dictionary=True)
+            try:
+                # Get result details
                 cur.execute("""
-                    INSERT IGNORE INTO user_achievements (user_id, achievement_id)
-                    SELECT %s, achievement_id FROM achievements WHERE achievement_code = 'error_learner'
-                """, (user_id,))
-            
-            conn.commit()
-        
-        # Get ALL questions from this quiz with user's answers
-        cur.execute("""
-            SELECT q.q_id, q.question_text, q.option_a, q.option_b, 
-                   q.option_c, q.option_d, q.correct_option, q.subject,
-                   ua.user_answer
-            FROM user_answers ua
-            JOIN questions q ON ua.q_id = q.q_id
-            WHERE ua.result_id = %s
-            ORDER BY q.q_id
-        """, (result_id,))
-        quiz_questions = cur.fetchall()
-        
-        # If no user answers found (old quiz), try to get questions by subject
-        if not quiz_questions:
-            print("No user answers found for this quiz (old result)")
-            cur.execute("""
-                SELECT q.q_id, q.question_text, q.option_a, q.option_b, 
-                       q.option_c, q.option_d, q.correct_option, q.subject,
-                       NULL as user_answer
-                FROM questions q
-                WHERE q.subject = %s
-                LIMIT 20
-            """, (result['subject'],))
-            quiz_questions = cur.fetchall()
-        
-        cur.close()
-        conn.close()
-        
-        print(f"Found {len(quiz_questions)} questions for review")
-        
-        # Debug: Print sample questions with user answers for verification
-        if quiz_questions and len(quiz_questions) > 0:
-            print("\n=== SAMPLE QUESTIONS FOR DEBUGGING ===")
-            for i, q in enumerate(quiz_questions[:3]):  # First 3 questions
-                # Convert correct_option text to letter for comparison
-                correct_text = q['correct_option']
-                correct_letter = None
-                if correct_text == q['option_a']:
-                    correct_letter = 'A'
-                elif correct_text == q['option_b']:
-                    correct_letter = 'B'
-                elif correct_text == q['option_c']:
-                    correct_letter = 'C'
-                elif correct_text == q['option_d']:
-                    correct_letter = 'D'
-                
-                user_ans = q.get('user_answer')
-                is_match = user_ans and user_ans.upper() == correct_letter if correct_letter else False
-                
-                print(f"Q{i+1} (ID:{q['q_id']}): Correct={correct_letter} ({correct_text}), User={user_ans}")
-                print(f"   Match: {is_match if user_ans else 'Not answered'}")
-            print("=" * 40 + "\n")
-        
-        return render_template('quiz_review.html', 
-                             result=result, 
+                    SELECT subject, score, total_questions, percentage, submitted_at
+                    FROM results
+                    WHERE result_id = %s AND user_id = %s
+                """, (result_id, user_id))
+                result = cur.fetchone()
+
+                if not result:
+                    return redirect(url_for('view_results'))
+
+                # Track review for achievement
+                incorrect_count = result['total_questions'] - result['score']
+                if incorrect_count > 0:
+                    cur.execute("""
+                        INSERT INTO user_statistics (user_id, total_reviews, incorrect_answers_reviewed)
+                        VALUES (%s, 1, %s)
+                        ON DUPLICATE KEY UPDATE
+                            total_reviews = total_reviews + 1,
+                            incorrect_answers_reviewed = incorrect_answers_reviewed + %s
+                    """, (user_id, incorrect_count, incorrect_count))
+
+                    # Check for Error Learner achievement
+                    cur.execute(
+                        "SELECT incorrect_answers_reviewed FROM user_statistics WHERE user_id = %s",
+                        (user_id,)
+                    )
+                    stats = cur.fetchone()
+                    if stats and (stats['incorrect_answers_reviewed'] or 0) >= 50:
+                        cur.execute("""
+                            INSERT IGNORE INTO user_achievements (user_id, achievement_id)
+                            SELECT %s, achievement_id FROM achievements WHERE achievement_code = 'error_learner'
+                        """, (user_id,))
+
+                    conn.commit()
+
+                # Get ALL questions from this quiz with user's answers
+                cur.execute("""
+                    SELECT q.q_id, q.question_text, q.option_a, q.option_b,
+                           q.option_c, q.option_d, q.correct_option, q.subject,
+                           ua.user_answer
+                    FROM user_answers ua
+                    JOIN questions q ON ua.q_id = q.q_id
+                    WHERE ua.result_id = %s
+                    ORDER BY q.q_id
+                """, (result_id,))
+                quiz_questions = cur.fetchall()
+
+                # If no user answers found (old quiz), try to get questions by subject
+                if not quiz_questions:
+                    app.logger.info('No stored answers for result_id %s; falling back to subject', result_id)
+                    cur.execute("""
+                        SELECT q.q_id, q.question_text, q.option_a, q.option_b,
+                               q.option_c, q.option_d, q.correct_option, q.subject,
+                               NULL as user_answer
+                        FROM questions q
+                        WHERE q.subject = %s
+                        LIMIT %s
+                    """, (result['subject'], QUIZ_QUESTION_COUNT))
+                    quiz_questions = cur.fetchall()
+            finally:
+                cur.close()
+
+        app.logger.info('Review for result_id %s: %s questions', result_id, len(quiz_questions))
+
+        return render_template('quiz_review.html',
+                             result=result,
                              quiz_questions=quiz_questions,
                              result_id=result_id)
-    
-    except Exception as e:
-        print(f"Error in review_quiz: {e}")
-        cur.close()
-        conn.close()
+
+    except Exception:
+        app.logger.error('Error in review_quiz for result_id %s', result_id, exc_info=True)
+        flash('Could not load that quiz review.', 'error')
         return redirect(url_for('view_results'))
 
 
@@ -940,25 +877,51 @@ def admin():
     return render_template('admin.html')
 
 
+# Fields every question write must supply.
+QUESTION_FIELDS = (
+    'question_text', 'option_a', 'option_b', 'option_c',
+    'option_d', 'correct_option', 'subject'
+)
+
+
+def _validate_question_payload(data):
+    """
+    Pull the question fields out of a request body.
+
+    Returns (values, error). Previously these routes indexed the dict directly,
+    so a missing field raised KeyError and surfaced as an opaque 500.
+    """
+    if not isinstance(data, dict):
+        return None, 'Expected a JSON object.'
+
+    missing = [f for f in QUESTION_FIELDS if not str(data.get(f) or '').strip()]
+    if missing:
+        return None, f"Missing required field(s): {', '.join(missing)}"
+
+    return [str(data[f]).strip() for f in QUESTION_FIELDS], None
+
+
 # ---------------- API: CREATE QUESTION ----------------
 @app.route('/api/questions', methods=['POST'])
 @admin_required
 def create_question():
-    data = request.get_json()
+    values, error = _validate_question_payload(request.get_json(silent=True))
+    if error:
+        return jsonify({"error": error}), 400
+
     try:
-        conn = get_connection()
-        cursor = conn.cursor()
-        cursor.execute("""
-            INSERT INTO questions (question_text, option_a, option_b, option_c, option_d, correct_option, subject)
-            VALUES (%s, %s, %s, %s, %s, %s, %s)
-        """, (data['question_text'], data['option_a'], data['option_b'], 
-              data['option_c'], data['option_d'], data['correct_option'], data['subject']))
-        conn.commit()
-        cursor.close()
-        conn.close()
+        with get_db_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                INSERT INTO questions (question_text, option_a, option_b, option_c, option_d, correct_option, subject)
+                VALUES (%s, %s, %s, %s, %s, %s, %s)
+            """, tuple(values))
+            conn.commit()
+            cursor.close()
         return jsonify({"message": "Question added successfully"}), 201
-    except Exception as e:
-        return jsonify({"message": str(e)}), 500
+    except Exception:
+        app.logger.error('Failed to create question', exc_info=True)
+        return jsonify({"error": "Could not add the question."}), 500
 
 
 # ---------------- API: READ ALL QUESTIONS ----------------
@@ -967,18 +930,16 @@ def create_question():
 def get_all_questions():
     subject = request.args.get('subject')
     try:
-        conn = get_connection()
-        cursor = conn.cursor(dictionary=True)
-        if subject:
-            cursor.execute("SELECT * FROM questions WHERE subject = %s", (subject,))
-        else:
-            cursor.execute("SELECT * FROM questions")
-        questions = cursor.fetchall()
-        cursor.close()
-        conn.close()
+        with get_db_cursor(dictionary=True) as cursor:
+            if subject:
+                cursor.execute("SELECT * FROM questions WHERE subject = %s", (subject,))
+            else:
+                cursor.execute("SELECT * FROM questions")
+            questions = cursor.fetchall()
         return jsonify(questions), 200
-    except Exception as e:
-        return jsonify({"message": str(e)}), 500
+    except Exception:
+        app.logger.error('Failed to list questions', exc_info=True)
+        return jsonify({"error": "Could not load questions."}), 500
 
 
 # ---------------- API: READ SINGLE QUESTION ----------------
@@ -986,41 +947,43 @@ def get_all_questions():
 @admin_required
 def get_question(qid):
     try:
-        conn = get_connection()
-        cursor = conn.cursor(dictionary=True)
-        cursor.execute("SELECT * FROM questions WHERE q_id = %s", (qid,))
-        question = cursor.fetchone()
-        cursor.close()
-        conn.close()
+        with get_db_cursor(dictionary=True) as cursor:
+            cursor.execute("SELECT * FROM questions WHERE q_id = %s", (qid,))
+            question = cursor.fetchone()
         if question:
             return jsonify(question), 200
-        return jsonify({"message": "Question not found"}), 404
-    except Exception as e:
-        return jsonify({"message": str(e)}), 500
+        return jsonify({"error": "Question not found"}), 404
+    except Exception:
+        app.logger.error('Failed to load question %s', qid, exc_info=True)
+        return jsonify({"error": "Could not load the question."}), 500
 
 
 # ---------------- API: UPDATE QUESTION ----------------
 @app.route('/api/questions/<int:qid>', methods=['PUT'])
 @admin_required
 def update_question(qid):
-    data = request.get_json()
+    values, error = _validate_question_payload(request.get_json(silent=True))
+    if error:
+        return jsonify({"error": error}), 400
+
     try:
-        conn = get_connection()
-        cursor = conn.cursor()
-        cursor.execute("""
-            UPDATE questions 
-            SET question_text=%s, option_a=%s, option_b=%s, option_c=%s, 
-                option_d=%s, correct_option=%s, subject=%s
-            WHERE q_id=%s
-        """, (data['question_text'], data['option_a'], data['option_b'], 
-              data['option_c'], data['option_d'], data['correct_option'], 
-              data['subject'], qid))
-        conn.commit()
-        cursor.close()
-        conn.close()
+        with get_db_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                UPDATE questions
+                SET question_text=%s, option_a=%s, option_b=%s, option_c=%s,
+                    option_d=%s, correct_option=%s, subject=%s
+                WHERE q_id=%s
+            """, tuple(values) + (qid,))
+            conn.commit()
+            updated = cursor.rowcount
+            cursor.close()
+        if updated == 0:
+            return jsonify({"error": "Question not found"}), 404
         return jsonify({"message": "Question updated successfully"}), 200
-    except Exception as e:
-        return jsonify({"message": str(e)}), 500
+    except Exception:
+        app.logger.error('Failed to update question %s', qid, exc_info=True)
+        return jsonify({"error": "Could not update the question."}), 500
 
 
 # ---------------- API: DELETE QUESTION ----------------
@@ -1028,15 +991,18 @@ def update_question(qid):
 @admin_required
 def delete_question(qid):
     try:
-        conn = get_connection()
-        cursor = conn.cursor()
-        cursor.execute("DELETE FROM questions WHERE q_id = %s", (qid,))
-        conn.commit()
-        cursor.close()
-        conn.close()
+        with get_db_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("DELETE FROM questions WHERE q_id = %s", (qid,))
+            conn.commit()
+            deleted = cursor.rowcount
+            cursor.close()
+        if deleted == 0:
+            return jsonify({"error": "Question not found"}), 404
         return jsonify({"message": "Question deleted successfully"}), 200
-    except Exception as e:
-        return jsonify({"message": str(e)}), 500
+    except Exception:
+        app.logger.error('Failed to delete question %s', qid, exc_info=True)
+        return jsonify({"error": "Could not delete the question."}), 500
 
 
 # ---------------- SECURITY HEADERS ----------------
@@ -1215,37 +1181,40 @@ def upload_flashcard_csv(deck_id):
         return jsonify({'error': 'No file provided'}), 400
     
     file = request.files['file']
-    
-    if not file.filename or file.filename == '' or not file.filename.endswith('.csv'):
-        return jsonify({'error': 'Invalid file. Must be CSV'}), 400
-    
+
+    error = validate_csv_upload(file)
+    if error:
+        return jsonify({'error': error}), 400
+
     user_id = session.get('user_id')
-    
+
     try:
         # Read CSV file
         stream = io.StringIO(file.stream.read().decode("UTF-8"), newline=None)
         csv_reader = csv.DictReader(stream)
-        
+
         cards_data = []
         for row in csv_reader:
             cards_data.append(row)
-        
+
         if not cards_data:
             return jsonify({'error': 'CSV file is empty'}), 400
-        
+
         # Import cards using bulk_create_cards
         result = bulk_create_cards(deck_id, user_id, cards_data)
-        
+
         return jsonify({
             'message': f"Successfully imported {result['inserted']} card(s)",
             'inserted': result['inserted'],
             'failed': result['failed'],
             'errors': result['errors']
         }), 200 if result['failed'] == 0 else 207
-        
-    except Exception as e:
-        app.logger.error(f"Error uploading flashcard CSV: {e}")
-        return jsonify({'error': str(e)}), 500
+
+    except UnicodeDecodeError:
+        return jsonify({'error': 'File must be UTF-8 encoded text.'}), 400
+    except Exception:
+        app.logger.error('Error uploading flashcard CSV to deck %s', deck_id, exc_info=True)
+        return jsonify({'error': 'Upload failed. Please check the file and try again.'}), 500
 
 
 # ---------------- STUDY SESSION ROUTES ----------------
@@ -1263,7 +1232,11 @@ def study_session_page():
         return redirect(url_for('flashcard_dashboard'))
     
     deck_name = cards[0]['deck_name'] if cards and deck_id else 'All Decks'
-    return render_template('study_session.html', cards=cards, deck_name=deck_name, deck_id=deck_id)
+    # The template shows a "Day Streak" tile from stats; without this it
+    # silently rendered 0 for everyone.
+    stats = get_user_stats(user_id)
+    return render_template('study_session.html', cards=cards, deck_name=deck_name,
+                           deck_id=deck_id, stats=stats)
 
 
 @app.route('/study-session', methods=['GET'])
@@ -1335,46 +1308,42 @@ def get_study_log_api():
 @login_required
 def mcq_categories_page():
     """MCQ categories browsing page"""
-    conn = get_connection()
-    cursor = conn.cursor(dictionary=True)
-    
-    cursor.execute("""
-        SELECT c.*, COUNT(q.q_id) AS question_count
-        FROM mcq_categories c
-        LEFT JOIN questions q ON c.category_id = q.category_id
-        GROUP BY c.category_id
-        ORDER BY c.category_name
-    """)
-    categories = cursor.fetchall()
-    
-    # Get user stats
     user_id = session.get('user_id')
-    cursor.execute("""
-        SELECT 
-            COALESCE(SUM(total_questions), 0) as total_attempted,
-            COALESCE(SUM(score), 0) as correct_answers,
-            CASE 
-                WHEN COALESCE(SUM(total_questions), 0) > 0 
-                THEN (COALESCE(SUM(score), 0) * 100.0 / SUM(total_questions)) 
-                ELSE 0 
-            END as accuracy
-        FROM results WHERE user_id = %s
-    """, (user_id,))
-    quiz_stats = cursor.fetchone()
-    
-    cursor.execute("SELECT COALESCE(points, 0) as points FROM users WHERE user_id = %s", (user_id,))
-    user_row = cursor.fetchone()
-    
+
+    with get_db_cursor(dictionary=True) as cursor:
+        cursor.execute("""
+            SELECT c.*, COUNT(q.q_id) AS question_count
+            FROM mcq_categories c
+            LEFT JOIN questions q ON c.category_id = q.category_id
+            GROUP BY c.category_id
+            ORDER BY c.category_name
+        """)
+        categories = cursor.fetchall()
+
+        # Get user stats
+        cursor.execute("""
+            SELECT
+                COALESCE(SUM(total_questions), 0) as total_attempted,
+                COALESCE(SUM(score), 0) as correct_answers,
+                CASE
+                    WHEN COALESCE(SUM(total_questions), 0) > 0
+                    THEN (COALESCE(SUM(score), 0) * 100.0 / SUM(total_questions))
+                    ELSE 0
+                END as accuracy
+            FROM results WHERE user_id = %s
+        """, (user_id,))
+        quiz_stats = cursor.fetchone()
+
+        cursor.execute("SELECT COALESCE(points, 0) as points FROM users WHERE user_id = %s", (user_id,))
+        user_row = cursor.fetchone()
+
     user_stats = {
         'total_attempted': quiz_stats['total_attempted'] if quiz_stats else 0,
         'correct_answers': quiz_stats['correct_answers'] if quiz_stats else 0,
         'accuracy': quiz_stats['accuracy'] if quiz_stats else 0,
         'points': user_row['points'] if user_row else 0
     }
-    
-    cursor.close()
-    conn.close()
-    
+
     return render_template('mcq_categories.html', categories=categories, user_stats=user_stats)
 
 
@@ -1382,22 +1351,17 @@ def mcq_categories_page():
 @login_required
 def get_mcq_categories():
     """API: Get all MCQ categories"""
-    conn = get_connection()
-    cursor = conn.cursor(dictionary=True)
-    
-    cursor.execute("""
-        SELECT c.category_id, c.category_name, c.description, c.icon, c.color,
-               COUNT(q.q_id) AS question_count
-        FROM mcq_categories c
-        LEFT JOIN questions q ON c.category_id = q.category_id
-        GROUP BY c.category_id
-        ORDER BY c.category_name
-    """)
-    categories = cursor.fetchall()
-    
-    cursor.close()
-    conn.close()
-    
+    with get_db_cursor(dictionary=True) as cursor:
+        cursor.execute("""
+            SELECT c.category_id, c.category_name, c.description, c.icon, c.color,
+                   COUNT(q.q_id) AS question_count
+            FROM mcq_categories c
+            LEFT JOIN questions q ON c.category_id = q.category_id
+            GROUP BY c.category_id
+            ORDER BY c.category_name
+        """)
+        categories = cursor.fetchall()
+
     return jsonify({'categories': categories}), 200
 
 
@@ -1405,33 +1369,28 @@ def get_mcq_categories():
 @login_required
 def mcq_by_category(category_id):
     """Practice MCQs by category"""
-    conn = get_connection()
-    cursor = conn.cursor(dictionary=True)
-    
-    # Get category info
-    cursor.execute("""
-        SELECT * FROM mcq_categories WHERE category_id = %s
-    """, (category_id,))
-    category = cursor.fetchone()
-    
-    if not category:
-        flash('Category not found', 'error')
-        return redirect(url_for('mcq_categories_page'))
-    
-    # Get questions for this category (random 20)
-    cursor.execute("""
-        SELECT q_id, question_text, option_a, option_b, option_c, option_d, 
-               correct_option, difficulty
-        FROM questions
-        WHERE category_id = %s
-        ORDER BY RAND()
-        LIMIT 20
-    """, (category_id,))
-    questions = cursor.fetchall()
-    
-    cursor.close()
-    conn.close()
-    
+    with get_db_cursor(dictionary=True) as cursor:
+        # Get category info
+        cursor.execute("""
+            SELECT * FROM mcq_categories WHERE category_id = %s
+        """, (category_id,))
+        category = cursor.fetchone()
+
+        if not category:
+            flash('Category not found', 'error')
+            return redirect(url_for('mcq_categories_page'))
+
+        # Get questions for this category (random selection)
+        cursor.execute("""
+            SELECT q_id, question_text, option_a, option_b, option_c, option_d,
+                   correct_option, difficulty
+            FROM questions
+            WHERE category_id = %s
+            ORDER BY RAND()
+            LIMIT %s
+        """, (category_id, QUIZ_QUESTION_COUNT))
+        questions = cursor.fetchall()
+
     if not questions:
         flash('No questions available in this category', 'info')
         return redirect(url_for('mcq_categories_page'))
@@ -1451,74 +1410,85 @@ def upload_mcq_csv():
         return jsonify({'error': 'No file provided'}), 400
     
     file = request.files['file']
-    
-    if not file.filename or file.filename == '' or not file.filename.endswith('.csv'):
-        return jsonify({'error': 'Invalid file. Must be CSV'}), 400
-    
+
+    error = validate_csv_upload(file)
+    if error:
+        return jsonify({'error': error}), 400
+
     category_id = request.form.get('category_id', type=int)
-    
+
     try:
         stream = io.StringIO(file.stream.read().decode("UTF-8"), newline=None)
         csv_reader = csv.DictReader(stream)
-        
-        conn = get_connection()
-        cursor = conn.cursor()
-        
-        successful = 0
-        failed = 0
-        errors = []
-        
-        for row_num, row in enumerate(csv_reader, start=2):
+
+        with get_db_connection() as conn:
+            cursor = conn.cursor()
             try:
-                question_text = row.get('question_text', '').strip()
-                option_a = row.get('option_a', '').strip()
-                option_b = row.get('option_b', '').strip()
-                option_c = row.get('option_c', '').strip()
-                option_d = row.get('option_d', '').strip()
-                correct_option = row.get('correct_option', '').strip()
-                subject = row.get('subject', '').strip()
-                difficulty = row.get('difficulty', 'medium').strip().lower()
-                
-                if not all([question_text, option_a, option_b, option_c, option_d, correct_option]):
-                    raise ValueError("Missing required fields")
-                
-                # Use category from form or try to match subject
-                final_category_id = category_id
-                if not final_category_id and subject:
-                    cursor.execute(
-                        "SELECT category_id FROM mcq_categories WHERE category_name = %s",
-                        (subject,)
-                    )
-                    cat = cursor.fetchone()
-                    if cat:
-                        final_category_id = cat[0]
-                
-                cursor.execute("""
-                    INSERT INTO questions 
-                    (question_text, option_a, option_b, option_c, option_d, 
-                     correct_option, subject, category_id, difficulty)
-                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
-                """, (question_text, option_a, option_b, option_c, option_d,
-                      correct_option, subject, final_category_id, difficulty))
-                successful += 1
-                
-            except Exception as e:
-                failed += 1
-                errors.append({'row': row_num, 'error': str(e)})
-        
-        conn.commit()
-        cursor.close()
-        conn.close()
-        
+                successful = 0
+                failed = 0
+                errors = []
+
+                # Resolve category names up front instead of issuing a lookup
+                # per row (the old behaviour was one extra query per question).
+                category_lookup = {}
+                if not category_id:
+                    cursor.execute("SELECT category_id, category_name FROM mcq_categories")
+                    category_lookup = {
+                        name.strip().lower(): cid for cid, name in cursor.fetchall()
+                    }
+
+                for row_num, row in enumerate(csv_reader, start=2):
+                    try:
+                        question_text = (row.get('question_text') or '').strip()
+                        option_a = (row.get('option_a') or '').strip()
+                        option_b = (row.get('option_b') or '').strip()
+                        option_c = (row.get('option_c') or '').strip()
+                        option_d = (row.get('option_d') or '').strip()
+                        correct_option = (row.get('correct_option') or '').strip()
+                        subject = (row.get('subject') or '').strip()
+                        difficulty = (row.get('difficulty') or 'medium').strip().lower()
+
+                        if not all([question_text, option_a, option_b, option_c, option_d, correct_option]):
+                            raise ValueError("Missing required fields")
+
+                        # Use category from form or match on the subject name
+                        final_category_id = category_id
+                        if not final_category_id and subject:
+                            final_category_id = category_lookup.get(subject.lower())
+
+                        cursor.execute("""
+                            INSERT INTO questions
+                            (question_text, option_a, option_b, option_c, option_d,
+                             correct_option, subject, category_id, difficulty)
+                            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+                        """, (question_text, option_a, option_b, option_c, option_d,
+                              correct_option, subject, final_category_id, difficulty))
+                        successful += 1
+
+                    except Exception as e:
+                        failed += 1
+                        app.logger.warning('MCQ CSV row %s failed', row_num, exc_info=True)
+                        errors.append({
+                            'row': row_num,
+                            'error': str(e) if isinstance(e, ValueError) else 'Could not import this row'
+                        })
+
+                conn.commit()
+            finally:
+                cursor.close()
+
         return jsonify({
             'message': f'Upload complete: {successful} successful, {failed} failed',
             'successful': successful,
             'failed': failed,
             'errors': errors[:10]
         }), 200 if failed == 0 else 207
-        
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
+
+    except UnicodeDecodeError:
+        return jsonify({'error': 'File must be UTF-8 encoded text.'}), 400
+    except Exception:
+        app.logger.error('MCQ CSV upload failed', exc_info=True)
+        return jsonify({'error': 'Upload failed. Please check the file and try again.'}), 500
 
 
 # ============================================================================
@@ -1529,42 +1499,40 @@ def upload_mcq_csv():
 @login_required
 def leaderboard():
     """View the points leaderboard"""
-    conn = get_connection()
-    cursor = conn.cursor(dictionary=True)
-    
-    cursor.execute("""
-        SELECT u.user_id, u.username, u.full_name, COALESCE(u.points, 0) as points,
-               COUNT(DISTINCT ua.achievement_id) AS achievements_count,
-               COUNT(DISTINCT qr.result_id) AS quizzes_taken,
-               CASE WHEN COUNT(DISTINCT qr.result_id) > 0 
-                   THEN AVG(qr.score / qr.total_questions * 100) 
-                   ELSE 0 
-               END AS avg_score
-        FROM users u
-        LEFT JOIN user_achievements ua ON u.user_id = ua.user_id
-        LEFT JOIN results qr ON u.user_id = qr.user_id
-        GROUP BY u.user_id
-        ORDER BY u.points DESC
-        LIMIT 50
-    """)
-    leaderboard_data = cursor.fetchall()
-    
-    # Get current user's rank and points
     user_id = session.get('user_id')
-    cursor.execute("""
-        SELECT COUNT(*) + 1 AS user_rank
-        FROM users
-        WHERE COALESCE(points, 0) > (SELECT COALESCE(points, 0) FROM users WHERE user_id = %s)
-    """, (user_id,))
-    user_rank = cursor.fetchone()['user_rank']
-    
-    cursor.execute("SELECT COALESCE(points, 0) as points FROM users WHERE user_id = %s", (user_id,))
-    user_points = cursor.fetchone()['points']
-    
-    cursor.close()
-    conn.close()
-    
-    return render_template('leaderboard.html', 
+
+    with get_db_cursor(dictionary=True) as cursor:
+        cursor.execute("""
+            SELECT u.user_id, u.username, u.full_name, COALESCE(u.points, 0) as points,
+                   COUNT(DISTINCT ua.achievement_id) AS achievements_count,
+                   COUNT(DISTINCT qr.result_id) AS quizzes_taken,
+                   CASE WHEN COUNT(DISTINCT qr.result_id) > 0
+                       THEN AVG(qr.score / qr.total_questions * 100)
+                       ELSE 0
+                   END AS avg_score
+            FROM users u
+            LEFT JOIN user_achievements ua ON u.user_id = ua.user_id
+            LEFT JOIN results qr ON u.user_id = qr.user_id
+            GROUP BY u.user_id
+            ORDER BY u.points DESC
+            LIMIT %s
+        """, (LEADERBOARD_SIZE,))
+        leaderboard_data = cursor.fetchall()
+
+        # Get current user's rank and points
+        cursor.execute("""
+            SELECT COUNT(*) + 1 AS user_rank
+            FROM users
+            WHERE COALESCE(points, 0) > (SELECT COALESCE(points, 0) FROM users WHERE user_id = %s)
+        """, (user_id,))
+        rank_row = cursor.fetchone()
+        user_rank = rank_row['user_rank'] if rank_row else None
+
+        cursor.execute("SELECT COALESCE(points, 0) as points FROM users WHERE user_id = %s", (user_id,))
+        points_row = cursor.fetchone()
+        user_points = points_row['points'] if points_row else 0
+
+    return render_template('leaderboard.html',
                           leaderboard=leaderboard_data, 
                           current_user_rank=user_rank,
                           current_user_points=user_points)
@@ -1574,17 +1542,13 @@ def leaderboard():
 @login_required
 def get_user_points():
     """Get current user's points"""
-    conn = get_connection()
-    cursor = conn.cursor(dictionary=True)
-    
     user_id = session.get('user_id')
-    cursor.execute("SELECT points FROM users WHERE user_id = %s", (user_id,))
-    result = cursor.fetchone()
-    
-    cursor.close()
-    conn.close()
-    
-    return jsonify({'points': result['points'] if result else 0}), 200
+
+    with get_db_cursor(dictionary=True) as cursor:
+        cursor.execute("SELECT points FROM users WHERE user_id = %s", (user_id,))
+        result = cursor.fetchone()
+
+    return jsonify({'points': (result['points'] if result else 0) or 0}), 200
 
 
 # ---------------- ERROR HANDLERS ----------------
@@ -1607,6 +1571,26 @@ def forbidden_error(error):
     """Handle 403 errors"""
     app.logger.warning(f'403 error: {request.url}')
     return render_template('403.html'), 403
+
+
+@app.errorhandler(413)
+def payload_too_large(error):
+    """Handle uploads over MAX_CONTENT_LENGTH"""
+    limit_mb = app.config['MAX_CONTENT_LENGTH'] // (1024 * 1024)
+    return jsonify({'error': f'File too large. Maximum size is {limit_mb} MB.'}), 413
+
+
+@app.errorhandler(CSRFError)
+def handle_csrf_error(error):
+    """
+    A missing/expired CSRF token is a normal condition (stale tab, restarted
+    server), so explain it instead of surfacing a bare 400.
+    """
+    app.logger.warning('CSRF validation failed on %s: %s', request.path, error.description)
+    if request.path.startswith('/api/') or request.is_json:
+        return jsonify({'error': 'Your session expired. Please reload the page and try again.'}), 400
+    flash('Your session expired. Please try again.', 'error')
+    return redirect(request.referrer or url_for('index'))
 
 
 # ---------------- MAIN ----------------
