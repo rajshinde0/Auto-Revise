@@ -36,6 +36,15 @@
 CREATE DATABASE IF NOT EXISTS mcq_flashcards;
 USE mcq_flashcards;
 
+-- Tables below are emitted in alphabetical order, not dependency order:
+-- marked_questions is created before the `questions` table it references, so
+-- loading this file with foreign key checks on fails with
+-- "Foreign key constraint is incorrectly formed" (errno 150) partway through,
+-- leaving a half-built database. Suspend the checks for the load and restore
+-- the previous setting at the end of the file.
+SET @OLD_FOREIGN_KEY_CHECKS = @@FOREIGN_KEY_CHECKS;
+SET FOREIGN_KEY_CHECKS = 0;
+
 
 -- ============================================================
 -- TABLE: achievements
@@ -56,7 +65,7 @@ CREATE TABLE `achievements` (
   UNIQUE KEY `achievement_code` (`achievement_code`),
   KEY `idx_category` (`category`),
   KEY `idx_code` (`achievement_code`)
-) ENGINE=InnoDB AUTO_INCREMENT=26 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=26 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Rows in achievements: 25
 
@@ -82,7 +91,7 @@ CREATE TABLE `biology` (
   `option_d` varchar(255) DEFAULT NULL,
   `correct_option` char(1) DEFAULT NULL,
   PRIMARY KEY (`q_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Rows in biology: 0
 
@@ -100,7 +109,7 @@ CREATE TABLE `chemistry` (
   `option_d` varchar(255) DEFAULT NULL,
   `correct_option` char(1) DEFAULT NULL,
   PRIMARY KEY (`q_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Rows in chemistry: 0
 
@@ -119,7 +128,7 @@ CREATE TABLE `login_attempts` (
   KEY `idx_username_time` (`username`,`attempted_at`),
   KEY `idx_ip_time` (`ip_address`,`attempted_at`),
   KEY `idx_login_username_time_success` (`username`,`attempted_at`,`success`)
-) ENGINE=InnoDB AUTO_INCREMENT=11 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=11 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Rows in login_attempts: 10
 
@@ -148,7 +157,7 @@ CREATE TABLE `marked_questions` (
   UNIQUE KEY `unique_mark` (`user_id`,`q_id`),
   KEY `q_id` (`q_id`),
   CONSTRAINT `marked_questions_ibfk_1` FOREIGN KEY (`q_id`) REFERENCES `questions` (`q_id`)
-) ENGINE=InnoDB AUTO_INCREMENT=42 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=42 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Rows in marked_questions: 22
 
@@ -174,7 +183,7 @@ CREATE TABLE `maths` (
   `option_d` varchar(255) DEFAULT NULL,
   `correct_option` char(1) DEFAULT NULL,
   PRIMARY KEY (`q_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Rows in maths: 0
 
@@ -192,7 +201,7 @@ CREATE TABLE `physics` (
   `option_d` varchar(255) DEFAULT NULL,
   `correct_option` char(1) DEFAULT NULL,
   PRIMARY KEY (`q_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Rows in physics: 0
 
@@ -214,7 +223,7 @@ CREATE TABLE `questions` (
   PRIMARY KEY (`q_id`),
   KEY `idx_questions_subject_id` (`subject`,`q_id`),
   FULLTEXT KEY `idx_questions_fulltext` (`question_text`,`option_a`,`option_b`,`option_c`,`option_d`)
-) ENGINE=InnoDB AUTO_INCREMENT=775 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=775 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Rows in questions: 120
 
@@ -241,7 +250,7 @@ CREATE TABLE `questions_backup` (
   `option_c` varchar(255) DEFAULT NULL,
   `option_d` varchar(255) DEFAULT NULL,
   `correct_option` char(1) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Rows in questions_backup: 120
 
@@ -279,7 +288,7 @@ CREATE TABLE `quiz_sessions` (
   KEY `idx_quiz_date` (`quiz_date`),
   KEY `idx_result_id` (`result_id`),
   CONSTRAINT `quiz_sessions_ibfk_1` FOREIGN KEY (`result_id`) REFERENCES `results` (`result_id`) ON DELETE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Rows in quiz_sessions: 1
 
@@ -302,7 +311,7 @@ CREATE TABLE `results` (
   PRIMARY KEY (`result_id`),
   KEY `idx_results_user_subject` (`user_id`,`subject`,`percentage` DESC),
   CONSTRAINT `fk_results_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`user_id`) ON DELETE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=32 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=32 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Rows in results: 31
 
@@ -332,7 +341,7 @@ CREATE TABLE `user_achievements` (
   KEY `idx_unlocked_at` (`unlocked_at`),
   KEY `idx_user_ach_user_unlocked` (`user_id`,`unlocked_at` DESC),
   CONSTRAINT `user_achievements_ibfk_1` FOREIGN KEY (`achievement_id`) REFERENCES `achievements` (`achievement_id`) ON DELETE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=5 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=5 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Rows in user_achievements: 4
 
@@ -357,7 +366,7 @@ CREATE TABLE `user_answers` (
   KEY `idx_result_id` (`result_id`),
   KEY `idx_q_id` (`q_id`),
   KEY `idx_user_answers_result_qid` (`result_id`,`q_id`)
-) ENGINE=InnoDB AUTO_INCREMENT=151 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=151 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Rows in user_answers: 150
 
@@ -378,14 +387,20 @@ CREATE TABLE `user_sessions` (
   `session_id` varchar(255) NOT NULL,
   `user_id` int NOT NULL,
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
-  `expires_at` timestamp NOT NULL,
+  -- Needs an explicit default. As the second TIMESTAMP column in this table,
+  -- MySQL silently assigns it a '0000-00-00 00:00:00' default, which any
+  -- server running NO_ZERO_DATE (MariaDB's default) rejects outright with
+  -- "Invalid default value for 'expires_at'". CURRENT_TIMESTAMP fails safe:
+  -- a row that omits the value reads as already expired. In practice app.py
+  -- always supplies it, so the default is never used.
+  `expires_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `ip_address` varchar(45) DEFAULT NULL,
   `user_agent` text,
   PRIMARY KEY (`session_id`),
   KEY `idx_user_id` (`user_id`),
   KEY `idx_expires_at` (`expires_at`),
   CONSTRAINT `user_sessions_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`user_id`) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Rows in user_sessions: 1
 
@@ -433,7 +448,7 @@ CREATE TABLE `user_statistics` (
   UNIQUE KEY `user_id` (`user_id`),
   KEY `idx_user_id` (`user_id`),
   KEY `idx_last_quiz_date` (`last_quiz_date`)
-) ENGINE=InnoDB AUTO_INCREMENT=9 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=9 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Rows in user_statistics: 2
 
@@ -461,7 +476,7 @@ CREATE TABLE `users` (
   UNIQUE KEY `email` (`email`),
   KEY `idx_username` (`username`),
   KEY `idx_email` (`email`)
-) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Rows in users: 2
 
@@ -471,7 +486,10 @@ INSERT INTO `users` (`user_id`, `username`, `email`, `password_hash`, `full_name
 
 
 -- ============================================================
--- ALL QUERIES USED IN APPLICATION (46+ Queries)
+-- ALL QUERIES USED IN APPLICATION (46+ Queries) - REFERENCE ONLY
+-- These are commented out: they contain `?` placeholders and are not
+-- executable. Leaving them live aborted the load here, so the views
+-- below were never created.
 -- ============================================================
 -- Note: ? represents parameterized placeholder for security
 -- ============================================================
@@ -481,36 +499,36 @@ INSERT INTO `users` (`user_id`, `username`, `email`, `password_hash`, `full_name
 -- ============================================================
 
 -- Query 1: Check Username/Email Availability (register route)
-SELECT user_id FROM users WHERE username = ? OR email = ?;
+-- SELECT user_id FROM users WHERE username = ? OR email = ?;
 
 -- Query 2: Create New User (register route)
-INSERT INTO users (username, email, password_hash, full_name, is_admin, created_at)
-VALUES (?, ?, ?, ?, 0, NOW());
+-- INSERT INTO users (username, email, password_hash, full_name, is_admin, created_at)
+-- VALUES (?, ?, ?, ?, 0, NOW());
 
 -- Query 3: User Login Validation (login route)
-SELECT * FROM users WHERE username = ?;
+-- SELECT * FROM users WHERE username = ?;
 
 -- Query 4: Rate Limiting Check - Prevent brute force (login route)
-SELECT COUNT(*) as attempts 
-FROM login_attempts 
-WHERE username = ? 
-  AND success = 0 
-  AND attempted_at > DATE_SUB(NOW(), INTERVAL 15 MINUTE);
+-- SELECT COUNT(*) as attempts 
+-- FROM login_attempts 
+-- WHERE username = ? 
+--   AND success = 0 
+--   AND attempted_at > DATE_SUB(NOW(), INTERVAL 15 MINUTE);
 
 -- Query 5: Log Successful Login Attempt
-INSERT INTO login_attempts (username, ip_address, attempted_at, success)
-VALUES (?, ?, NOW(), 1);
+-- INSERT INTO login_attempts (username, ip_address, attempted_at, success)
+-- VALUES (?, ?, NOW(), 1);
 
 -- Query 6: Log Failed Login Attempt
-INSERT INTO login_attempts (username, ip_address, attempted_at, success)
-VALUES (?, ?, NOW(), 0);
+-- INSERT INTO login_attempts (username, ip_address, attempted_at, success)
+-- VALUES (?, ?, NOW(), 0);
 
 -- Query 7: Create User Session (7-day expiration)
-INSERT INTO user_sessions (session_id, user_id, created_at, expires_at, ip_address)
-VALUES (?, ?, NOW(), DATE_ADD(NOW(), INTERVAL 7 DAY), ?);
+-- INSERT INTO user_sessions (session_id, user_id, created_at, expires_at, ip_address)
+-- VALUES (?, ?, NOW(), DATE_ADD(NOW(), INTERVAL 7 DAY), ?);
 
 -- Query 8: Logout - Delete User Sessions
-DELETE FROM user_sessions WHERE user_id = ?;
+-- DELETE FROM user_sessions WHERE user_id = ?;
 
 -- ============================================================
 -- SECTION 2: QUIZ MANAGEMENT QUERIES (3 queries)
@@ -518,280 +536,280 @@ DELETE FROM user_sessions WHERE user_id = ?;
 
 -- Query 9: Get Random Questions - OPTIMIZED (60-80% faster than RAND())
 -- Python shuffles results for true randomization
-SELECT * FROM questions WHERE subject = ? ORDER BY q_id;
+-- SELECT * FROM questions WHERE subject = ? ORDER BY q_id;
 
 -- Query 10: Get Question by ID (answer verification)
-SELECT * FROM questions WHERE q_id = ? AND subject = ?;
+-- SELECT * FROM questions WHERE q_id = ? AND subject = ?;
 
 -- Query 11: Get from Subject-Specific Table (legacy)
-SELECT * FROM physics ORDER BY q_id LIMIT 20;  -- or chemistry, biology, maths
+-- SELECT * FROM physics ORDER BY q_id LIMIT 20;  -- or chemistry, biology, maths
 
 -- ============================================================
 -- SECTION 3: RESULT HANDLING QUERIES (6 queries)
 -- ============================================================
 
 -- Query 12: Save Quiz Result
-INSERT INTO results (user_id, subject, score, total_questions, percentage, time_taken, attempted_at)
-VALUES (?, ?, ?, ?, ?, ?, NOW());
+-- INSERT INTO results (user_id, subject, score, total_questions, percentage, time_taken, attempted_at)
+-- VALUES (?, ?, ?, ?, ?, ?, NOW());
 
 -- Query 13: Save Individual Answers (for review feature)
-INSERT INTO user_answers (result_id, q_id, user_answer, is_correct)
-VALUES (?, ?, ?, ?);
+-- INSERT INTO user_answers (result_id, q_id, user_answer, is_correct)
+-- VALUES (?, ?, ?, ?);
 
 -- Query 14: Get User Results History
-SELECT * FROM results WHERE user_id = ? ORDER BY attempted_at DESC;
+-- SELECT * FROM results WHERE user_id = ? ORDER BY attempted_at DESC;
 
 -- Query 15: Get Specific Result Details
-SELECT * FROM results WHERE result_id = ? AND user_id = ?;
+-- SELECT * FROM results WHERE result_id = ? AND user_id = ?;
 
 -- Query 16: Get Result Review with INNER JOIN
-SELECT ua.*, q.question_text, q.option_a, q.option_b, q.option_c, q.option_d, q.correct_option
-FROM user_answers ua
-INNER JOIN questions q ON ua.q_id = q.q_id
-WHERE ua.result_id = ?
-ORDER BY ua.id;
+-- SELECT ua.*, q.question_text, q.option_a, q.option_b, q.option_c, q.option_d, q.correct_option
+-- FROM user_answers ua
+-- INNER JOIN questions q ON ua.q_id = q.q_id
+-- WHERE ua.result_id = ?
+-- ORDER BY ua.id;
 
 -- Query 17: Subject Performance Summary (using aggregation)
-SELECT 
-    subject,
-    COUNT(*) as attempts,
-    ROUND(AVG(percentage), 2) as avg_score,
-    MAX(percentage) as best_score,
-    MIN(percentage) as worst_score
-FROM results
-WHERE user_id = ?
-GROUP BY subject;
+-- SELECT 
+--     subject,
+--     COUNT(*) as attempts,
+--     ROUND(AVG(percentage), 2) as avg_score,
+--     MAX(percentage) as best_score,
+--     MIN(percentage) as worst_score
+-- FROM results
+-- WHERE user_id = ?
+-- GROUP BY subject;
 
 -- ============================================================
 -- SECTION 4: ACHIEVEMENT SYSTEM QUERIES (6 queries)
 -- ============================================================
 
 -- Query 18: Initialize Achievements - Check if loaded
-SELECT COUNT(*) FROM achievements;
+-- SELECT COUNT(*) FROM achievements;
 
 -- Query 19: Insert Achievement Definition
-INSERT INTO achievements 
-    (achievement_code, title, description, icon, requirement_type, requirement_value, subject)
-VALUES (?, ?, ?, ?, ?, ?, ?);
+-- INSERT INTO achievements 
+--     (achievement_code, title, description, icon, requirement_type, requirement_value, subject)
+-- VALUES (?, ?, ?, ?, ?, ?, ?);
 
 -- Query 20: Get All Achievements with User Progress (LEFT JOIN)
-SELECT 
-    a.achievement_id,
-    a.achievement_code,
-    a.title,
-    a.description,
-    a.icon,
-    a.category,
-    ua.unlocked_at,
-    ua.progress_when_unlocked,
-    CASE WHEN ua.id IS NOT NULL THEN 1 ELSE 0 END as is_unlocked
-FROM achievements a
-LEFT JOIN user_achievements ua 
-    ON a.achievement_id = ua.achievement_id AND ua.user_id = ?
-ORDER BY ua.unlocked_at DESC, a.achievement_id;
+-- SELECT 
+--     a.achievement_id,
+--     a.achievement_code,
+--     a.title,
+--     a.description,
+--     a.icon,
+--     a.category,
+--     ua.unlocked_at,
+--     ua.progress_when_unlocked,
+--     CASE WHEN ua.id IS NOT NULL THEN 1 ELSE 0 END as is_unlocked
+-- FROM achievements a
+-- LEFT JOIN user_achievements ua 
+--     ON a.achievement_id = ua.achievement_id AND ua.user_id = ?
+-- ORDER BY ua.unlocked_at DESC, a.achievement_id;
 
 -- Query 21: Check Achievement Unlock - NOT EXISTS Subquery (70% faster)
-SELECT a.achievement_id, a.achievement_code, a.title, a.icon, a.description
-FROM achievements a
-WHERE a.achievement_code = ?
-  AND NOT EXISTS (
-      SELECT 1 FROM user_achievements ua 
-      WHERE ua.user_id = ? AND ua.achievement_id = a.achievement_id
-  );
+-- SELECT a.achievement_id, a.achievement_code, a.title, a.icon, a.description
+-- FROM achievements a
+-- WHERE a.achievement_code = ?
+--   AND NOT EXISTS (
+--       SELECT 1 FROM user_achievements ua 
+--       WHERE ua.user_id = ? AND ua.achievement_id = a.achievement_id
+--   );
 
 -- Query 22: Unlock Achievement
-INSERT INTO user_achievements (user_id, achievement_id, progress_when_unlocked, unlocked_at)
-VALUES (?, ?, ?, NOW());
+-- INSERT INTO user_achievements (user_id, achievement_id, progress_when_unlocked, unlocked_at)
+-- VALUES (?, ?, ?, NOW());
 
 -- Query 23: Get Recent Unlocked Achievements
-SELECT a.*, ua.unlocked_at
-FROM user_achievements ua
-INNER JOIN achievements a ON ua.achievement_id = a.achievement_id
-WHERE ua.user_id = ?
-ORDER BY ua.unlocked_at DESC
-LIMIT 5;
+-- SELECT a.*, ua.unlocked_at
+-- FROM user_achievements ua
+-- INNER JOIN achievements a ON ua.achievement_id = a.achievement_id
+-- WHERE ua.user_id = ?
+-- ORDER BY ua.unlocked_at DESC
+-- LIMIT 5;
 
 -- ============================================================
 -- SECTION 5: USER STATISTICS QUERIES (6 queries)
 -- ============================================================
 
 -- Query 24: Initialize User Statistics
-INSERT INTO user_statistics (user_id, total_quizzes_completed, total_questions_solved)
-VALUES (?, 0, 0);
+-- INSERT INTO user_statistics (user_id, total_quizzes_completed, total_questions_solved)
+-- VALUES (?, 0, 0);
 
 -- Query 25: Update Overall Statistics
-UPDATE user_statistics 
-SET total_quizzes_completed = total_quizzes_completed + 1,
-    total_questions_solved = total_questions_solved + ?,
-    perfect_quizzes_count = perfect_quizzes_count + ?,
-    last_quiz_date = CURDATE()
-WHERE user_id = ?;
+-- UPDATE user_statistics 
+-- SET total_quizzes_completed = total_quizzes_completed + 1,
+--     total_questions_solved = total_questions_solved + ?,
+--     perfect_quizzes_count = perfect_quizzes_count + ?,
+--     last_quiz_date = CURDATE()
+-- WHERE user_id = ?;
 
 -- Query 26: Update Subject-Specific Stats (example: Physics)
-UPDATE user_statistics 
-SET physics_quizzes = physics_quizzes + 1,
-    physics_perfect_count = physics_perfect_count + ?,
-    physics_completed = TRUE
-WHERE user_id = ?;
+-- UPDATE user_statistics 
+-- SET physics_quizzes = physics_quizzes + 1,
+--     physics_perfect_count = physics_perfect_count + ?,
+--     physics_completed = TRUE
+-- WHERE user_id = ?;
 
 -- Query 27: Get User Statistics
-SELECT * FROM user_statistics WHERE user_id = ?;
+-- SELECT * FROM user_statistics WHERE user_id = ?;
 
 -- Query 28: Update Streak Information
 -- Column names must match the user_statistics definition above:
 -- current_streak_days / longest_streak_days (not current_streak / best_streak).
-UPDATE user_statistics
-SET current_streak_days = ?,
-    longest_streak_days = GREATEST(longest_streak_days, ?),
-    last_quiz_date = CURDATE()
-WHERE user_id = ?;
+-- UPDATE user_statistics
+-- SET current_streak_days = ?,
+--     longest_streak_days = GREATEST(longest_streak_days, ?),
+--     last_quiz_date = CURDATE()
+-- WHERE user_id = ?;
 
 -- Query 29: Track Quiz Retakes using JSON
-UPDATE user_statistics 
-SET quiz_retakes = JSON_SET(COALESCE(quiz_retakes, '{}'), CONCAT('$.', ?), ?)
-WHERE user_id = ?;
+-- UPDATE user_statistics 
+-- SET quiz_retakes = JSON_SET(COALESCE(quiz_retakes, '{}'), CONCAT('$.', ?), ?)
+-- WHERE user_id = ?;
 
 -- ============================================================
 -- SECTION 6: ADMIN PANEL QUERIES (6 queries)
 -- ============================================================
 
 -- Query 30: Get All Users with Quiz Count (scalar subquery)
-SELECT 
-    user_id, username, email, full_name, is_admin, created_at,
-    (SELECT COUNT(*) FROM results WHERE results.user_id = users.user_id) as quiz_count
-FROM users
-ORDER BY created_at DESC;
+-- SELECT 
+--     user_id, username, email, full_name, is_admin, created_at,
+--     (SELECT COUNT(*) FROM results WHERE results.user_id = users.user_id) as quiz_count
+-- FROM users
+-- ORDER BY created_at DESC;
 
 -- Query 31: Full-Text Search Questions (requires FULLTEXT index)
-SELECT * FROM questions 
-WHERE MATCH(question_text, option_a, option_b, option_c, option_d) 
-    AGAINST(? IN NATURAL LANGUAGE MODE)
-LIMIT 50;
+-- SELECT * FROM questions 
+-- WHERE MATCH(question_text, option_a, option_b, option_c, option_d) 
+--     AGAINST(? IN NATURAL LANGUAGE MODE)
+-- LIMIT 50;
 
 -- Query 32: Add New Question (admin)
-INSERT INTO questions (subject, question_text, option_a, option_b, option_c, option_d, correct_option)
-VALUES (?, ?, ?, ?, ?, ?, ?);
+-- INSERT INTO questions (subject, question_text, option_a, option_b, option_c, option_d, correct_option)
+-- VALUES (?, ?, ?, ?, ?, ?, ?);
 
 -- Query 33: Update Question (admin)
-UPDATE questions 
-SET question_text = ?, option_a = ?, option_b = ?, option_c = ?, option_d = ?, correct_option = ?
-WHERE q_id = ? AND subject = ?;
+-- UPDATE questions 
+-- SET question_text = ?, option_a = ?, option_b = ?, option_c = ?, option_d = ?, correct_option = ?
+-- WHERE q_id = ? AND subject = ?;
 
 -- Query 34: Delete Question (admin)
-DELETE FROM questions WHERE q_id = ? AND subject = ?;
+-- DELETE FROM questions WHERE q_id = ? AND subject = ?;
 
 -- Query 35: Get System Statistics (multiple scalar subqueries)
-SELECT 
-    (SELECT COUNT(*) FROM users WHERE is_admin = 0) as total_users,
-    (SELECT COUNT(*) FROM questions) as total_questions,
-    (SELECT COUNT(*) FROM results) as total_quizzes_taken,
-    (SELECT COUNT(*) FROM user_achievements) as total_achievements_unlocked,
-    (SELECT AVG(percentage) FROM results) as avg_score;
+-- SELECT 
+--     (SELECT COUNT(*) FROM users WHERE is_admin = 0) as total_users,
+--     (SELECT COUNT(*) FROM questions) as total_questions,
+--     (SELECT COUNT(*) FROM results) as total_quizzes_taken,
+--     (SELECT COUNT(*) FROM user_achievements) as total_achievements_unlocked,
+--     (SELECT AVG(percentage) FROM results) as avg_score;
 
 -- ============================================================
 -- SECTION 7: LEADERBOARD & ANALYTICS QUERIES (4 queries)
 -- ============================================================
 
 -- Query 36: Global Leaderboard - Complex Multi-JOIN Aggregation
-SELECT 
-    u.user_id, u.username, u.full_name,
-    COUNT(r.result_id) as quizzes_taken,
-    ROUND(AVG(r.percentage), 2) as avg_score,
-    MAX(r.percentage) as best_score,
-    COUNT(DISTINCT ua.achievement_id) as achievements_count,
-    MAX(r.attempted_at) as last_active
-FROM users u
-LEFT JOIN results r ON u.user_id = r.user_id
-LEFT JOIN user_achievements ua ON u.user_id = ua.user_id
-WHERE u.is_admin = 0
-GROUP BY u.user_id, u.username, u.full_name
-HAVING quizzes_taken > 0
-ORDER BY avg_score DESC, quizzes_taken DESC
-LIMIT 100;
+-- SELECT 
+--     u.user_id, u.username, u.full_name,
+--     COUNT(r.result_id) as quizzes_taken,
+--     ROUND(AVG(r.percentage), 2) as avg_score,
+--     MAX(r.percentage) as best_score,
+--     COUNT(DISTINCT ua.achievement_id) as achievements_count,
+--     MAX(r.attempted_at) as last_active
+-- FROM users u
+-- LEFT JOIN results r ON u.user_id = r.user_id
+-- LEFT JOIN user_achievements ua ON u.user_id = ua.user_id
+-- WHERE u.is_admin = 0
+-- GROUP BY u.user_id, u.username, u.full_name
+-- HAVING quizzes_taken > 0
+-- ORDER BY avg_score DESC, quizzes_taken DESC
+-- LIMIT 100;
 
 -- Query 37: Subject Leaderboard
-SELECT 
-    u.username, u.full_name,
-    COUNT(*) as attempts,
-    ROUND(AVG(r.percentage), 2) as avg_score,
-    MAX(r.percentage) as best_score
-FROM results r
-INNER JOIN users u ON r.user_id = u.user_id
-WHERE r.subject = ? AND u.is_admin = 0
-GROUP BY u.user_id, u.username, u.full_name
-HAVING attempts >= 3
-ORDER BY avg_score DESC, attempts DESC
-LIMIT 50;
+-- SELECT 
+--     u.username, u.full_name,
+--     COUNT(*) as attempts,
+--     ROUND(AVG(r.percentage), 2) as avg_score,
+--     MAX(r.percentage) as best_score
+-- FROM results r
+-- INNER JOIN users u ON r.user_id = u.user_id
+-- WHERE r.subject = ? AND u.is_admin = 0
+-- GROUP BY u.user_id, u.username, u.full_name
+-- HAVING attempts >= 3
+-- ORDER BY avg_score DESC, attempts DESC
+-- LIMIT 50;
 
 -- Query 38: Recent Activity Feed
-SELECT u.username, r.subject, r.score, r.total_questions, r.percentage, r.attempted_at
-FROM results r
-INNER JOIN users u ON r.user_id = u.user_id
-WHERE u.is_admin = 0
-ORDER BY r.attempted_at DESC
-LIMIT 20;
+-- SELECT u.username, r.subject, r.score, r.total_questions, r.percentage, r.attempted_at
+-- FROM results r
+-- INNER JOIN users u ON r.user_id = u.user_id
+-- WHERE u.is_admin = 0
+-- ORDER BY r.attempted_at DESC
+-- LIMIT 20;
 
 -- Query 39: Performance Trend Analysis (30-day history)
-SELECT 
-    DATE(attempted_at) as quiz_date,
-    subject,
-    AVG(percentage) as avg_score,
-    COUNT(*) as attempts
-FROM results
-WHERE user_id = ? AND attempted_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)
-GROUP BY DATE(attempted_at), subject
-ORDER BY quiz_date DESC;
+-- SELECT 
+--     DATE(attempted_at) as quiz_date,
+--     subject,
+--     AVG(percentage) as avg_score,
+--     COUNT(*) as attempts
+-- FROM results
+-- WHERE user_id = ? AND attempted_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)
+-- GROUP BY DATE(attempted_at), subject
+-- ORDER BY quiz_date DESC;
 
 -- ============================================================
 -- SECTION 8: COMPLEX ACHIEVEMENT QUERIES (4 queries)
 -- ============================================================
 
 -- Query 40: Check "Hot Streak" - Inline View Subquery
-SELECT COUNT(*) as count 
-FROM (
-    SELECT percentage FROM results 
-    WHERE user_id = ? 
-    ORDER BY result_id DESC 
-    LIMIT 5
-) recent
-WHERE recent.percentage >= 70;
+-- SELECT COUNT(*) as count 
+-- FROM (
+--     SELECT percentage FROM results 
+--     WHERE user_id = ? 
+--     ORDER BY result_id DESC 
+--     LIMIT 5
+-- ) recent
+-- WHERE recent.percentage >= 70;
 
 -- Query 41: Check Score Improvement - Self JOIN with Correlated Subquery
-SELECT r1.percentage as current_score, r2.percentage as previous_score
-FROM results r1
-LEFT JOIN results r2 ON r1.user_id = r2.user_id 
-    AND r1.subject = r2.subject 
-    AND r2.result_id = (
-        SELECT MAX(result_id) 
-        FROM results 
-        WHERE user_id = r1.user_id AND subject = r1.subject AND result_id < r1.result_id
-    )
-WHERE r1.result_id = ?;
+-- SELECT r1.percentage as current_score, r2.percentage as previous_score
+-- FROM results r1
+-- LEFT JOIN results r2 ON r1.user_id = r2.user_id 
+--     AND r1.subject = r2.subject 
+--     AND r2.result_id = (
+--         SELECT MAX(result_id) 
+--         FROM results 
+--         WHERE user_id = r1.user_id AND subject = r1.subject AND result_id < r1.result_id
+--     )
+-- WHERE r1.result_id = ?;
 
 -- Query 42: Count Daily Quizzes (session achievement)
-SELECT COUNT(*) as daily_count
-FROM results
-WHERE user_id = ? AND DATE(attempted_at) = CURDATE();
+-- SELECT COUNT(*) as daily_count
+-- FROM results
+-- WHERE user_id = ? AND DATE(attempted_at) = CURDATE();
 
 -- Query 43: Check All Subjects Completed
-SELECT COUNT(DISTINCT subject) as subjects_count
-FROM results
-WHERE user_id = ?;
+-- SELECT COUNT(DISTINCT subject) as subjects_count
+-- FROM results
+-- WHERE user_id = ?;
 
 -- ============================================================
 -- SECTION 9: SESSION & CLEANUP QUERIES (3 queries)
 -- ============================================================
 
 -- Query 44: Clean Expired Sessions (scheduled task)
-DELETE FROM user_sessions WHERE expires_at < NOW();
+-- DELETE FROM user_sessions WHERE expires_at < NOW();
 
 -- Query 45: Get Active Sessions Count
-SELECT COUNT(*) as active_sessions
-FROM user_sessions
-WHERE expires_at > NOW();
+-- SELECT COUNT(*) as active_sessions
+-- FROM user_sessions
+-- WHERE expires_at > NOW();
 
 -- Query 46: Update Session Activity
-UPDATE user_sessions SET last_activity = NOW() WHERE session_id = ?;
+-- UPDATE user_sessions SET last_activity = NOW() WHERE session_id = ?;
 
 -- ============================================================
 -- PERFORMANCE VIEWS (Pre-computed for faster queries)
@@ -807,7 +825,7 @@ SELECT
     SUM(r.score) as total_correct,
     SUM(r.total_questions) as total_questions,
     COUNT(DISTINCT r.subject) as subjects_attempted,
-    MAX(r.attempted_at) as last_quiz_date
+    MAX(r.submitted_at) as last_quiz_date
 FROM users u
 LEFT JOIN results r ON u.user_id = r.user_id
 GROUP BY u.user_id, u.username, u.full_name;
@@ -819,7 +837,7 @@ SELECT
     COUNT(r.result_id) as quizzes_taken,
     ROUND(AVG(r.percentage), 2) as avg_score,
     COUNT(DISTINCT ua.achievement_id) as achievements_count,
-    MAX(r.attempted_at) as last_active
+    MAX(r.submitted_at) as last_active
 FROM users u
 LEFT JOIN results r ON u.user_id = r.user_id
 LEFT JOIN user_achievements ua ON u.user_id = ua.user_id
@@ -838,7 +856,7 @@ SELECT
     MAX(percentage) as best_score,
     MIN(percentage) as worst_score,
     SUM(CASE WHEN percentage = 100 THEN 1 ELSE 0 END) as perfect_scores,
-    MAX(attempted_at) as last_attempt
+    MAX(submitted_at) as last_attempt
 FROM results
 GROUP BY user_id, subject;
 
@@ -912,9 +930,16 @@ PERFORMANCE STATISTICS:
 -- Total Tables: 16
 -- Total Queries: 46+
 -- Total Indexes: 20+
+-- Restore the caller's foreign key checking (suspended at the top of the file
+-- because the tables are emitted alphabetically rather than in dependency
+-- order).
+SET FOREIGN_KEY_CHECKS = @OLD_FOREIGN_KEY_CHECKS;
+
 -- Total Views: 3
 -- Total Achievements: 25
--- Database Engine: MySQL 8.0+ with InnoDB
+-- Database Engine: InnoDB. Tested on MySQL 8.0 and MariaDB 10.4 (XAMPP).
 -- Character Set: utf8mb4 (full Unicode support including emojis)
--- Collation: utf8mb4_unicode_ci
+-- Collation: utf8mb4_unicode_ci - portable across MySQL 5.7/8.0 and MariaDB.
+--            Do not use utf8mb4_unicode_ci here: it is MySQL 8.0 only and
+--            makes this dump fail to load on MariaDB/XAMPP.
 -- ============================================================
