@@ -1,8 +1,11 @@
 import mysql.connector
 from mysql.connector import pooling
+import logging
 import os
 from dotenv import load_dotenv
 from contextlib import contextmanager
+
+logger = logging.getLogger(__name__)
 
 # Load environment variables
 load_dotenv()
@@ -22,23 +25,36 @@ connection_pool = pooling.MySQLConnectionPool(
 )
 
 def get_connection():
-    """Get connection from pool for better performance"""
+    """
+    Get a connection from the pool.
+
+    Callers must close() it (which returns it to the pool) on every code path -
+    prefer the get_db_connection()/get_db_cursor() context managers below,
+    which do that for you. A leaked connection is gone for the life of the
+    process, and the pool is finite.
+    """
     try:
         return connection_pool.get_connection()
-    except Exception as e:
-        print(f"Error getting connection from pool: {e}")
+    except Exception:
+        logger.error('Error getting connection from pool', exc_info=True)
         raise
 
 @contextmanager
 def get_db_connection():
     """
     Context manager for database connections.
-    Ensures connections are always properly closed.
-    
+    Ensures the connection is always returned to the pool, including on error.
+
+    Use this for anything that WRITES, or that needs to hand the live
+    connection to a helper function. The pool runs with autocommit=False, so
+    the caller is responsible for calling conn.commit() - anything uncommitted
+    when the block exits is rolled back as the connection resets.
+
     Usage:
         with get_db_connection() as conn:
-            cursor = conn.cursor()
+            cursor = conn.cursor(dictionary=True)
             cursor.execute(...)
+            conn.commit()
     """
     conn = None
     try:
@@ -51,11 +67,16 @@ def get_db_connection():
 @contextmanager
 def get_db_cursor(dictionary=False):
     """
-    Context manager for database cursor with automatic connection cleanup.
-    
+    Context manager for a cursor with automatic connection cleanup.
+
+    READ-ONLY. This yields only the cursor, so there is no way to commit, and
+    the pool runs with autocommit=False - any INSERT/UPDATE/DELETE issued here
+    is silently rolled back when the connection returns to the pool. Use
+    get_db_connection() for writes.
+
     Usage:
         with get_db_cursor(dictionary=True) as cursor:
-            cursor.execute(...)
+            cursor.execute("SELECT ...")
             results = cursor.fetchall()
     """
     conn = None
@@ -69,9 +90,3 @@ def get_db_cursor(dictionary=False):
             cursor.close()
         if conn:
             conn.close()
-
-if __name__ == "__main__":
-    conn = get_connection()
-    print(conn.is_connected())
-    conn.close()
-
