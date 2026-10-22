@@ -14,6 +14,15 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
 from src.db_config import get_connection
 from src.flashcard_system import create_deck, bulk_create_cards
 
+# Windows consoles default to cp1252, which cannot encode the emoji in this
+# script's progress output. Without this the script dies with
+# UnicodeEncodeError instead of doing its job - and the error handler then
+# fails the same way trying to report it.
+if hasattr(sys.stdout, 'reconfigure'):
+    sys.stdout.reconfigure(encoding='utf-8', errors='replace')
+    sys.stderr.reconfigure(encoding='utf-8', errors='replace')
+
+
 
 def get_or_create_admin_user():
     """Get the first admin user or create a system user for flashcards"""

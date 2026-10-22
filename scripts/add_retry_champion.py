@@ -12,6 +12,15 @@ sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..'
 
 from db_config import get_connection
 
+# Windows consoles default to cp1252, which cannot encode the emoji in this
+# script's progress output. Without this the script dies with
+# UnicodeEncodeError instead of doing its job - and the error handler then
+# fails the same way trying to report it.
+if hasattr(sys.stdout, 'reconfigure'):
+    sys.stdout.reconfigure(encoding='utf-8', errors='replace')
+    sys.stderr.reconfigure(encoding='utf-8', errors='replace')
+
+
 def add_retry_champion_achievement():
     """Add Retry Champion achievement to database"""
     

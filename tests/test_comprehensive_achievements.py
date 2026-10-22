@@ -26,6 +26,15 @@ except Exception as _exc:  # pragma: no cover - environment dependent
 
 from datetime import datetime
 
+# Windows consoles default to cp1252, which cannot encode the emoji in this
+# script's progress output. Without this the script dies with
+# UnicodeEncodeError instead of doing its job - and the error handler then
+# fails the same way trying to report it.
+if hasattr(sys.stdout, 'reconfigure'):
+    sys.stdout.reconfigure(encoding='utf-8', errors='replace')
+    sys.stderr.reconfigure(encoding='utf-8', errors='replace')
+
+
 print("=" * 80)
 print(" " * 20 + "🏆 ACHIEVEMENTS SYSTEM TEST 🏆")
 print("=" * 80)

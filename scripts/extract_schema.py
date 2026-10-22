@@ -28,10 +28,12 @@ def extract_complete_schema():
     output.append("-- " + "="*60)
     output.append("")
     
-    # Get all tables
-    cur.execute("SHOW TABLES")
+    # Get base tables only. Plain SHOW TABLES also lists views, and
+    # SHOW CREATE TABLE on a view returns a 'Create View' column instead of
+    # 'Create Table', which used to kill this script with a KeyError.
+    cur.execute("SHOW FULL TABLES WHERE Table_type = 'BASE TABLE'")
     tables = [list(row.values())[0] for row in cur.fetchall()]
-    
+
     output.append(f"-- Total Tables: {len(tables)}")
     output.append(f"-- Tables: {', '.join(tables)}")
     output.append("")
@@ -125,10 +127,22 @@ def extract_complete_schema():
 
 if __name__ == "__main__":
     schema = extract_complete_schema()
-    
-    # Write to file
-    with open("COMPLETE_DATABASE_SCHEMA.sql", "w", encoding="utf-8") as f:
+
+    # Write beside the other database files rather than to a bare relative
+    # path, which dropped a stray copy wherever the script happened to be run
+    # from.
+    #
+    # Deliberately NOT database/COMPLETE_DATABASE_SCHEMA.sql: that file is
+    # maintained by hand and carries the foreign-key load-order guards and
+    # setup notes a raw dump does not reproduce. Diff this export against it
+    # rather than overwriting it.
+    repo_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    out_path = os.path.join(repo_root, 'database', 'schema_export.sql')
+
+    with open(out_path, "w", encoding="utf-8") as f:
         f.write(schema)
-    
-    print("✅ Complete database schema exported to COMPLETE_DATABASE_SCHEMA.sql")
+
+    print(f"✅ Database schema exported to {out_path}")
     print(f"📊 File size: {len(schema)} characters")
+    print("ℹ️  This is a raw dump. database/COMPLETE_DATABASE_SCHEMA.sql is the")
+    print("   curated version (load-order guards, setup notes) - diff, don't clobber.")
