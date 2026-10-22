@@ -1,7 +1,28 @@
 """
 Test script to verify the achievements system
 """
+import os
+import sys
+
+# Make src/ importable when run as `pytest tests/` from the repo root.
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'src'))
+
 from db_config import get_connection
+
+# These modules are integration checks: they run top-level code against a live
+# MySQL instance rather than being self-contained unit tests. Skip the module
+# cleanly when no database is reachable so `pytest tests/` stays green in
+# environments without one (and still runs for real when a DB is configured).
+try:
+    _probe = get_connection()
+    _probe.close()
+except Exception as _exc:  # pragma: no cover - environment dependent
+    try:
+        import pytest
+        pytest.skip(f"MySQL not reachable: {_exc}", allow_module_level=True)
+    except ImportError:
+        raise SystemExit(f"MySQL not reachable: {_exc}")
+
 
 print("=" * 60)
 print("TESTING ACHIEVEMENTS SYSTEM")

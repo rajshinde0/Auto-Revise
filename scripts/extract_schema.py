@@ -5,6 +5,12 @@ import sys
 import io
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
 
+import os
+
+# Make src/ importable so this runs from the repo root, the way the
+# README documents it (python scripts/extract_schema.py).
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'src'))
+
 from db_config import get_connection
 import json
 

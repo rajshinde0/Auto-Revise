@@ -45,10 +45,8 @@ CP/
 │   └── migrations/       # Migration scripts
 │       ├── flashcard_migration.sql
 │       ├── auth_migration.py
-│       ├── migrate_achievements.py
 │       ├── comprehensive_achievements_migration.py
-│       ├── run_flashcard_migration.py
-│       └── optimize_database.py
+│       └── run_flashcard_migration.py
 │
 ├── data/                 # Quiz data files
 │   ├── physics.csv
@@ -78,9 +76,10 @@ CP/
 │
 ├── logs/                 # Application logs
 │
-└── archive/              # Archived/deprecated files
-    ├── CP_anas/          # Reference implementation
-    └── ACHIEVEMENTS_IMPLEMENTATION.py
+└── archive/              # Archived - do not run
+    ├── ACHIEVEMENTS_IMPLEMENTATION.py
+    ├── migrate_achievements.py.DEPRECATED    # destructive, superseded
+    └── optimize_database.py.DEPRECATED       # references dropped columns
 ```
 
 ## 🚀 Features
@@ -123,11 +122,20 @@ CP/
    # Edit .env with your database credentials
    ```
 
-3. **Setup database:**
+3. **Setup database** (both steps, in this order):
    ```bash
+   # 1. Core tables (quiz, auth, achievements)
    mysql -u root -p < database/COMPLETE_DATABASE_SCHEMA.sql
+
+   # 2. Flashcard subsystem - decks, cards, card_performance, study_log,
+   #    mcq_categories, users.points. The schema dump above does NOT
+   #    include these, so the flashcard pages fail without this step.
    python database/migrations/run_flashcard_migration.py
    ```
+
+   > Scripts under `archive/*.DEPRECATED` must not be run - they are either
+   > destructive or reference columns that no longer exist. Each explains why
+   > in its header.
 
 4. **Run the application:**
    ```bash
@@ -139,13 +147,23 @@ CP/
 
 ## 🔧 Configuration
 
-Edit `.env` file:
+Copy `.env.example` to `.env` and edit it. Never commit `.env` (it is gitignored).
+
 ```env
+SECRET_KEY=replace-with-a-long-random-secret
+FLASK_ENV=production          # "development" enables the Werkzeug debugger
 DB_HOST=localhost
 DB_USER=root
-DB_PASSWORD=your_password
+DB_PASSWORD=your-mysql-password
 DB_NAME=mcq_flashcards
-SECRET_KEY=your-secret-key
+DB_POOL_SIZE=32
+CSRF_ENABLED=True             # leave on; tokens are wired into all forms/fetches
+SESSION_COOKIE_SECURE=False   # set True when serving over HTTPS
+LOGIN_ATTEMPTS_LIMIT=5        # failed logins allowed per username + IP
+LOGIN_ATTEMPTS_WINDOW_MINUTES=15
+QUIZ_QUESTION_COUNT=20
+LEADERBOARD_SIZE=50
+MAX_UPLOAD_MB=5               # cap on CSV upload size
 ```
 
 ## 📊 Database Tables
@@ -167,8 +185,16 @@ SECRET_KEY=your-secret-key
 ## 🧪 Running Tests
 
 ```bash
-cd CP
 python -m pytest tests/
+```
+
+The suite is integration-style: the three DB modules skip automatically when
+no MySQL server is reachable. `tests/test_login.py` is a manual end-to-end
+script that needs the app already running:
+
+```bash
+python app.py                 # terminal 1
+python tests/test_login.py    # terminal 2
 ```
 
 ## 📝 License

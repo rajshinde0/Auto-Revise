@@ -1,10 +1,36 @@
 -- ============================================================
--- MCQ QUIZ APPLICATION - COMPLETE DATABASE DUMP
+-- MCQ QUIZ APPLICATION - CORE DATABASE DUMP
 -- Database: mcq_flashcards
 -- Generated: 2025
 -- ============================================================
+--
+-- SCOPE: this file covers the quiz/auth/achievement core ONLY (16 tables).
+-- It is NOT the whole schema. The flashcard subsystem lives in a separate
+-- migration and this dump does not contain it.
+--
+-- Loading this file alone leaves the app partly non-functional: every
+-- flashcard route fails, because these are missing here and are created by
+-- database/migrations/flashcard_migration.sql (or the equivalent
+-- run_flashcard_migration.py):
+--
+--   tables : decks, cards, card_performance, study_log,
+--            mcq_categories, mcq_performance
+--   columns: users.points
+--            user_statistics.total_decks, .total_cards, .cards_mastered,
+--                            .flashcards_reviewed, .total_points,
+--                            .study_sessions_count
+--            questions.category_id, questions.difficulty
+--
+-- CORRECT SETUP ORDER (see README.md):
+--   1. mysql -u root -p < database/COMPLETE_DATABASE_SCHEMA.sql
+--   2. python database/migrations/run_flashcard_migration.py
+--
+-- Do NOT run archive/migrate_achievements.py.DEPRECATED or
+-- archive/optimize_database.py.DEPRECATED - both are broken/destructive
+-- against this schema. See the headers in those files.
+-- ============================================================
 
--- Total Tables: 16
+-- Total Tables: 16 (core only - see SCOPE above)
 -- Tables: achievements, biology, chemistry, login_attempts, marked_questions, maths, physics, questions, questions_backup, quiz_sessions, results, user_achievements, user_answers, user_sessions, user_statistics, users
 
 CREATE DATABASE IF NOT EXISTS mcq_flashcards;
@@ -612,9 +638,11 @@ WHERE user_id = ?;
 SELECT * FROM user_statistics WHERE user_id = ?;
 
 -- Query 28: Update Streak Information
-UPDATE user_statistics 
-SET current_streak = ?,
-    best_streak = GREATEST(best_streak, ?),
+-- Column names must match the user_statistics definition above:
+-- current_streak_days / longest_streak_days (not current_streak / best_streak).
+UPDATE user_statistics
+SET current_streak_days = ?,
+    longest_streak_days = GREATEST(longest_streak_days, ?),
     last_quiz_date = CURDATE()
 WHERE user_id = ?;
 

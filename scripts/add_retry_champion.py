@@ -3,6 +3,13 @@ Migration script to add Retry Champion achievement
 Adds the 26th achievement: Retry Champion - for users who retake quizzes and improve
 """
 
+import os
+import sys
+
+# Make src/ importable so this runs from the repo root, the way the
+# README documents it (python scripts/add_retry_champion.py).
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'src'))
+
 from db_config import get_connection
 
 def add_retry_champion_achievement():

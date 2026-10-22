@@ -1,13 +1,23 @@
 """
 Comprehensive test script for login functionality
 Tests both admin and testuser login
+
+This is a manual end-to-end script, not a pytest suite: it needs the app
+already running on BASE_URL. Run it with:
+
+    python app.py            # in one terminal
+    python tests/test_login.py   # in another
+
+The helpers are deliberately named login_helper/check_protected_route rather
+than test_* so pytest does not collect them and then fail trying to resolve
+their arguments as fixtures.
 """
 import requests
 import json
 
 BASE_URL = "http://127.0.0.1:5000"
 
-def test_login(username, password):
+def login_helper(username, password):
     """Test login with given credentials"""
     print(f"\n{'='*60}")
     print(f"Testing login for: {username}")
@@ -51,7 +61,7 @@ def test_login(username, password):
             print("   Error: Rate limited")
         return False
 
-def test_protected_route(session, route_name, route_path):
+def check_protected_route(session, route_name, route_path):
     """Test accessing a protected route"""
     print(f"\n3. Testing protected route: {route_name}")
     response = session.get(f"{BASE_URL}{route_path}")
@@ -72,16 +82,16 @@ def main():
     print("="*60)
     
     # Test 1: Admin login
-    admin_success = test_login('admin', 'admin123')
+    admin_success = login_helper('admin', 'admin123')
     
     # Test 2: Testuser login
-    testuser_success = test_login('testuser', 'test123')
+    testuser_success = login_helper('testuser', 'test123')
     
     # Test 3: Invalid login
     print(f"\n{'='*60}")
     print("Testing invalid login")
     print(f"{'='*60}")
-    invalid_success = not test_login('invalid', 'wrongpass')
+    invalid_success = not login_helper('invalid', 'wrongpass')
     print(f"   {'✅' if invalid_success else '❌'} Invalid login properly rejected")
     
     # Summary

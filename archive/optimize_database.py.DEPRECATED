@@ -1,10 +1,48 @@
 """
+=============================================================================
+ARCHIVED - BROKEN AGAINST THE CURRENT SCHEMA. DO NOT RUN.
+=============================================================================
+
+Why this must not run:
+  It references columns that do not exist on the `results` table. The real
+  columns are `score` and `submitted_at`; this script uses `correct` and
+  `result_date` in:
+
+    - the v_user_performance view  (SUM(r.correct), MAX(r.result_date))
+    - the trg_results_updated trigger  (SET NEW.result_date = NOW())
+    - the idx_results_user_date index  (user_id, result_date DESC)
+
+  Only the index loop is wrapped in try/except. The view creation is not, so
+  the script dies partway through - after creating some indexes, but before
+  the covering/fulltext indexes, remaining views, stored procedures, triggers
+  and the OPTIMIZE/ANALYZE steps. The result is a half-applied migration.
+
+  This is the same class of column-drift bug that was already fixed in
+  app.py (correct_answers -> score); it was never fixed here.
+
+If you want these optimisations, port them to a fresh migration using the
+actual column names from database/COMPLETE_DATABASE_SCHEMA.sql.
+=============================================================================
+"""
+
+raise SystemExit(
+    "optimize_database.py is archived and references non-existent columns "
+    "(results.correct, results.result_date). Do not run it."
+)
+
+"""
 Database Optimization Script
 Implements advanced DBMS concepts for better performance
 """
 
-from db_config import get_connection
+import os
 import sys
+
+# Make src/ importable so this runs from the repo root, the way the
+# README documents it (python database/migrations/optimize_database.py).
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..', 'src'))
+
+from db_config import get_connection
 
 # Fix Windows encoding for emojis
 if sys.platform == 'win32':

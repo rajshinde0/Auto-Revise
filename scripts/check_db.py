@@ -1,4 +1,11 @@
 """Check database status after optimizations"""
+import os
+import sys
+
+# Make src/ importable so this runs from the repo root, the way the
+# README documents it (python scripts/check_db.py).
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'src'))
+
 from db_config import get_connection
 
 print("=" * 60)

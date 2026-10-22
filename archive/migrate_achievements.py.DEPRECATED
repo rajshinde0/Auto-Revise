@@ -1,7 +1,45 @@
 """
+=============================================================================
+ARCHIVED - SUPERSEDED AND DESTRUCTIVE. DO NOT RUN.
+=============================================================================
+
+Superseded by: database/migrations/comprehensive_achievements_migration.py
+
+Why this must not run:
+  It begins with DROP TABLE on user_achievements, achievements and
+  user_statistics, then recreates user_statistics WITHOUT the columns the
+  live application depends on - current_streak_days, longest_streak_days,
+  consecutive_correct_answers, max_consecutive_correct, night_owl_count,
+  early_bird_count, quiz_retakes, consecutive_perfect_quizzes and the
+  <subject>_quizzes / <subject>_perfect_count families.
+
+  src/achievement_system.py reads and writes those columns on every quiz
+  submission. Running this script after the comprehensive migration silently
+  destroys them, and every subsequent quiz submission then fails with
+  "Unknown column".
+
+  It also wipes all existing unlocked achievements and user statistics.
+
+Kept only as a record of the original migration.
+=============================================================================
+"""
+
+raise SystemExit(
+    "migrate_achievements.py is archived and destructive. "
+    "Use database/migrations/comprehensive_achievements_migration.py instead."
+)
+
+"""
 Migration script to upgrade to new achievements system
 This will drop old tables and create new ones
 """
+import os
+import sys
+
+# Make src/ importable so this runs from the repo root, the way the
+# README documents it (python database/migrations/migrate_achievements.py).
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..', 'src'))
+
 from db_config import get_connection
 
 print("=" * 60)

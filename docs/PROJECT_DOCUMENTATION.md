@@ -261,8 +261,8 @@ CREATE TABLE user_statistics (
     biology_perfect_count INT DEFAULT 0,
     mathematics_perfect_count INT DEFAULT 0,
     
-    current_streak INT DEFAULT 0,
-    best_streak INT DEFAULT 0,
+    current_streak_days INT DEFAULT 0,
+    longest_streak_days INT DEFAULT 0,
     last_quiz_date DATE,
     quiz_retakes JSON,
     
@@ -680,8 +680,9 @@ WHERE user_id = ?;
 SELECT * FROM user_statistics WHERE user_id = ?;
 
 -- Update streak
-UPDATE user_statistics 
-SET current_streak = ?, best_streak = GREATEST(best_streak, ?)
+UPDATE user_statistics
+SET current_streak_days = ?,
+    longest_streak_days = GREATEST(longest_streak_days, ?)
 WHERE user_id = ?;
 
 -- Track retakes (JSON)

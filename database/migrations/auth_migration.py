@@ -2,6 +2,13 @@
 Database migration to add user authentication system
 Adds users table and updates existing tables for multi-user support
 """
+import os
+import sys
+
+# Make src/ importable so this runs from the repo root, the way the
+# README documents it (python database/migrations/auth_migration.py).
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..', 'src'))
+
 from db_config import get_connection
 import bcrypt
 
