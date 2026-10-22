@@ -131,6 +131,12 @@ CP/
    #    mcq_categories, users.points. The schema dump above does NOT
    #    include these, so the flashcard pages fail without this step.
    python database/migrations/run_flashcard_migration.py
+
+   # 3. ON DELETE CASCADE on user_id for user_statistics, user_achievements,
+   #    marked_questions and quiz_sessions. Without it, deleting a user
+   #    leaves rows behind that still count toward the leaderboard and
+   #    achievement totals. Safe to re-run.
+   python database/migrations/add_user_fk_cascades.py
    ```
 
    > Scripts under `archive/*.DEPRECATED` must not be run - they are either
