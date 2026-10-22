@@ -137,7 +137,13 @@
             padding: 0;
         }
         
+        /* style.css also defines .quiz-header, with display:flex. Now that
+           this page shares the site stylesheet, that rule applied here and
+           put the heading and its instructions side by side, overlapping.
+           Declare the layout properties explicitly so nothing leaks in. */
         .quiz-header {
+            display: block;
+            border-bottom: none;
             background: white;
             padding: 20px;
             border-radius: 8px;

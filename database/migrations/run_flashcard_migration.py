@@ -220,16 +220,16 @@ def run_migration():
     # Add new flashcard achievements
     print("Adding flashcard achievements...", end=" ")
     achievements = [
-        ('first_deck', 'Deck Creator', 'Create your first flashcard deck', 'folder', 'flashcard', 'decks_created', 1, None),
-        ('deck_collector', 'Deck Collector', 'Create 5 flashcard decks', 'folder-open', 'flashcard', 'decks_created', 5, None),
-        ('card_creator', 'Card Creator', 'Create 50 flashcards', 'clone', 'flashcard', 'cards_created', 50, None),
-        ('knowledge_builder', 'Knowledge Builder', 'Create 250 flashcards', 'cubes', 'flashcard', 'cards_created', 250, None),
-        ('first_study', 'First Study Session', 'Complete your first study session', 'book-open', 'flashcard', 'study_sessions', 1, None),
-        ('study_streak_7', '7-Day Streak', 'Study for 7 days in a row', 'fire', 'streak', 'daily_streak', 7, None),
-        ('study_streak_30', '30-Day Streak', 'Study for 30 days in a row', 'star', 'streak', 'daily_streak', 30, None),
-        ('point_collector_100', 'Point Collector', 'Earn 100 points', 'coins', 'points', 'total_points', 100, None),
-        ('point_master_1000', 'Point Master', 'Earn 1000 points', 'trophy', 'points', 'total_points', 1000, None),
-        ('mastered_cards_10', 'Card Master', 'Master 10 flashcards', 'award', 'flashcard', 'cards_mastered', 10, None)
+        ('first_deck', 'Deck Creator', 'Create your first flashcard deck', '📁', 'flashcard', 'decks_created', 1, None),
+        ('deck_collector', 'Deck Collector', 'Create 5 flashcard decks', '🗂️', 'flashcard', 'decks_created', 5, None),
+        ('card_creator', 'Card Creator', 'Create 50 flashcards', '🃏', 'flashcard', 'cards_created', 50, None),
+        ('knowledge_builder', 'Knowledge Builder', 'Create 250 flashcards', '🧱', 'flashcard', 'cards_created', 250, None),
+        ('first_study', 'First Study Session', 'Complete your first study session', '📖', 'flashcard', 'study_sessions', 1, None),
+        ('study_streak_7', '7-Day Streak', 'Study for 7 days in a row', '🔥', 'streak', 'daily_streak', 7, None),
+        ('study_streak_30', '30-Day Streak', 'Study for 30 days in a row', '⭐', 'streak', 'daily_streak', 30, None),
+        ('point_collector_100', 'Point Collector', 'Earn 100 points', '🪙', 'points', 'total_points', 100, None),
+        ('point_master_1000', 'Point Master', 'Earn 1000 points', '🏆', 'points', 'total_points', 1000, None),
+        ('mastered_cards_10', 'Card Master', 'Master 10 flashcards', '🏅', 'flashcard', 'cards_mastered', 10, None)
     ]
     for ach in achievements:
         try:

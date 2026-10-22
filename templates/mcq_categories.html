@@ -16,14 +16,17 @@
         margin-bottom: 3rem;
     }
 
+    /* This header sits directly on the brand gradient, where the dark
+       heading and grey subtitle were close to illegible. */
     .page-header h1 {
         font-size: 2.5rem;
-        color: #2c3e50;
+        color: #fff;
         margin-bottom: 0.5rem;
+        text-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
     }
 
     .page-header p {
-        color: #7f8c8d;
+        color: rgba(255, 255, 255, 0.92);
         font-size: 1.1rem;
     }
 
@@ -127,6 +130,22 @@
     }
 
     /* Category Colors */
+    .category-card-empty {
+        opacity: 0.72;
+        cursor: default;
+    }
+
+    .category-card-empty:hover {
+        transform: none;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+    }
+
+    .start-btn-empty {
+        background: #e4e6ef;
+        color: #5b5f73;
+        cursor: not-allowed;
+    }
+
     .category-card.physics { --cat-color-1: #667eea; --cat-color-2: #764ba2; }
     .category-card.chemistry { --cat-color-1: #f093fb; --cat-color-2: #f5576c; }
     .category-card.biology { --cat-color-1: #4facfe; --cat-color-2: #00f2fe; }
@@ -246,7 +265,14 @@
         {% if categories %}
             {% for category in categories %}
             {% set cat_class = category.category_name|lower|replace(' ', '') %}
-            <a href="{{ url_for('quiz', subject=category.category_name|lower) }}" class="category-card {{ cat_class if cat_class in ['physics', 'chemistry', 'biology', 'mathematics', 'history', 'geography', 'computer', 'general', 'english', 'science'] else 'default' }}">
+            {# A category with no questions links nowhere: following it just
+               lands on an empty quiz page. Render it as a plain div instead. #}
+            {% set card_classes = 'category-card ' ~ (cat_class if cat_class in ['physics', 'chemistry', 'biology', 'mathematics', 'history', 'geography', 'computer', 'general', 'english', 'science'] else 'default') ~ ('' if category.question_count else ' category-card-empty') %}
+            {% if category.question_count %}
+            <a href="{{ url_for('quiz', subject=category.category_name|lower) }}" class="{{ card_classes }}">
+            {% else %}
+            <div class="{{ card_classes }}" aria-disabled="true">
+            {% endif %}
                 <div class="category-icon">
                     {% if cat_class == 'physics' %}
                         <i class="fas fa-atom" aria-hidden="true"></i>
@@ -285,9 +311,15 @@
                         <i class="fas fa-question-circle" aria-hidden="true"></i>
                         {{ category.question_count or 0 }} questions
                     </span>
-                    <button class="start-btn">Start Quiz</button>
+                    {# An empty category used to offer an active Start Quiz that
+                       just bounced the user straight back with a flash message. #}
+                    {% if category.question_count %}
+                        <button class="start-btn">Start Quiz</button>
+                    {% else %}
+                        <button class="start-btn start-btn-empty" disabled>No questions yet</button>
+                    {% endif %}
                 </div>
-            </a>
+            {% if category.question_count %}</a>{% else %}</div>{% endif %}
             {% endfor %}
         {% else %}
             <!-- Fallback to original subjects -->

@@ -55,9 +55,10 @@ body {
 }
 
 .nav-container {
-    max-width: 1200px;
+    max-width: 1400px;
     margin: 0 auto;
     padding: 1rem 2rem;
+    gap: 1.5rem;
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -68,12 +69,16 @@ body {
     font-weight: bold;
     color: #667eea;
     text-decoration: none;
+    white-space: nowrap;
 }
 
 .nav-menu {
     display: flex;
     list-style: none;
-    gap: 2rem;
+    align-items: center;
+    gap: 1.25rem;
+    flex-wrap: wrap;
+    justify-content: flex-end;
 }
 
 .nav-link {
@@ -81,6 +86,7 @@ body {
     color: #333;
     font-weight: 500;
     transition: color 0.3s;
+    white-space: nowrap;
 }
 
 .nav-link:hover {
@@ -805,6 +811,10 @@ body {
 .user-greeting {
     color: #667eea;
     font-weight: 600;
+    white-space: nowrap;
+    max-width: 14ch;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .btn-login, .btn-register {
@@ -1002,4 +1012,42 @@ body {
     background-color: #e8f2fb;
     color: #1b5e8f;
     border: 1px solid #c3dcf2;
+}
+
+/* ==========================================================================
+   Buttons sitting directly on the brand gradient (hero section)
+   These used to be inline styles that combined .btn-secondary's light grey
+   background with an inline white text colour - white on #f0f0f0, which was
+   effectively unreadable.
+   ========================================================================== */
+.hero-actions {
+    margin-top: 2rem;
+    display: flex;
+    gap: 1rem;
+    justify-content: center;
+    flex-wrap: wrap;
+}
+
+.btn-on-brand {
+    background: var(--color-surface);
+    color: var(--brand-start);
+    font-weight: 700;
+}
+
+.btn-on-brand:hover {
+    background: var(--color-surface);
+    transform: scale(1.05);
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+}
+
+.btn-on-brand-outline {
+    background: transparent;
+    color: #fff;
+    border: 2px solid rgba(255, 255, 255, 0.9);
+    font-weight: 600;
+}
+
+.btn-on-brand-outline:hover {
+    background: rgba(255, 255, 255, 0.15);
+    transform: scale(1.05);
 }

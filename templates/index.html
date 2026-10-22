@@ -7,13 +7,9 @@
     <h1 class="hero-title">Welcome to Quiz Master</h1>
     <p class="hero-subtitle">Test your knowledge across multiple subjects</p>
     {% if not session.get('user_id') %}
-        <div style="margin-top: 2rem;">
-            <a href="/login" class="btn btn-primary" style="margin: 0 10px; padding: 12px 30px; color: white; text-decoration: none; border-radius: 25px; display: inline-block; background: white; color: #667eea; font-weight: bold;">
-                Login to Start
-            </a>
-            <a href="/register" class="btn btn-secondary" style="margin: 0 10px; padding: 12px 30px; color: white; text-decoration: none; border-radius: 25px; display: inline-block; border: 2px solid white;">
-                Create Account
-            </a>
+        <div class="hero-actions">
+            <a href="/login" class="btn btn-on-brand">Login to Start</a>
+            <a href="/register" class="btn btn-on-brand-outline">Create Account</a>
         </div>
     {% endif %}
 </div>
